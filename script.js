@@ -762,3 +762,28 @@ window.addEventListener("resize", () => {
     }
   }, 150);
 });
+
+// Sticky search bar scroll effect
+let ticking = false;
+
+function updateSearchScrollEffect() {
+  const searchSection = document.querySelector(".search-section");
+  const scrollY = window.scrollY;
+
+  if (scrollY > 50) {
+    searchSection.classList.add("scrolled");
+  } else {
+    searchSection.classList.remove("scrolled");
+  }
+
+  ticking = false;
+}
+
+function requestScrollTick() {
+  if (!ticking) {
+    requestAnimationFrame(updateSearchScrollEffect);
+    ticking = true;
+  }
+}
+
+window.addEventListener("scroll", requestScrollTick);
