@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nursing Diagnosis Database</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1><i data-lucide="stethoscope"></i> Nursing Diagnosis Database</h1>
+        <p class="subtitle">
+          Search and explore nursing diagnoses with detailed information
+        </p>
+      </header>
+
+      <!-- Developer's Note Section -->
+      <section class="project-intro">
+        <h2 class="intro-title">About This Database</h2>
+        <p class="intro-text">
+          This Nursing Diagnosis Database was built using content extracted and
+          normalized from the
+          <a
+            href="https://www.amazon.com/Nursing-Diagnosis-Handbook-2021-2023-NANDA-I%C2%AE/dp/0323879888"
+            target="_blank"
+            class="intro-link standout-link"
+            >Nursing Diagnosis Handbook (Ackley et al.)</a
+          >. The data includes diagnoses, definitions, related factors,
+          characteristics, outcomes, and interventions, which serve as the
+          foundation for our AI system in generating Nursing Care Plans (NCPs).
+          A shortened and structured version of the book used, which the pages
+          are based on, for extraction can be accessed
+          <a
+            href="https://drive.google.com/drive/folders/1VD9GaHLYJkPmdYZfQqZ7eh-iKs6Olx-W?usp=sharing"
+            target="_blank"
+            class="intro-link standout-link"
+            >here</a
+          >.
+        </p>
+        <p class="intro-text">
+          This site showcases the knowledge base we are working with and is part
+          of an ongoing thesis study entitled
+          <strong
+            >"Automated Nursing Care Plan Creation Based on NANDA-I, NIC, and
+            NOC Standards Using Pre-Trained Transformer Models"</strong
+          >. You can watch a quick walkthrough of our system demo
+          <a
+            href="https://drive.google.com/drive/u/0/folders/1HpHoyeYU5ZydxWYE_gCjfqwVpNz0yqkz"
+            target="_blank"
+            class="intro-link standout-link"
+            >here</a
+          >. If you are a nursing student, we invite you to contribute by
+          submitting your own Nursing Care Plans through our
+          <a
+            href="https://docs.google.com/forms/d/e/1FAIpQLSdqc8nOrnClk6_n0yFssAfu5GihXik4BgbRD_wW26SDJIcOVQ/viewform"
+            target="_blank"
+            class="intro-link standout-link"
+            >submission form</a
+          >. Your participation will directly help improve the system and
+          support this research.
+        </p>
+      </section>
+
+      <div class="search-section">
+        <div class="search-container">
+          <i data-lucide="search" class="search-icon"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search diagnoses, definitions, characteristics, or conditions..."
+          />
+          <button id="clearSearch" class="clear-btn" title="Clear search">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="search-stats">
+          <span id="resultsCount">Showing all diagnoses</span>
+        </div>
+      </div>
+
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="risk">Risk Diagnoses</button>
+        <button class="filter-btn" data-filter="actual">
+          Actual Diagnoses
+        </button>
+        <button class="filter-btn" data-filter="readiness">
+          Readiness for Enhanced
+        </button>
+      </div>
+
+      <div class="results-container" id="resultsContainer">
+        <!-- Results will be populated by JavaScript -->
+      </div>
+
+      <!-- Pagination Container -->
+      <div class="pagination-container" id="paginationContainer">
+        <!-- Items per page control - moved to top for mobile -->
+        <div class="pagination-controls-top">
+          <div class="items-per-page">
+            <label for="itemsPerPage">Rows per page</label>
+            <select id="itemsPerPage">
+              <option value="6">6</option>
+              <option value="12" selected>12</option>
+              <option value="18">18</option>
+              <option value="24">24</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Main pagination navigation -->
+        <nav class="pagination-nav" aria-label="Pagination navigation">
+          <button
+            id="prevPage"
+            class="pagination-btn pagination-btn--previous"
+            title="Go to previous page"
+            aria-label="Go to previous page"
+          >
+            <i data-lucide="chevron-left" aria-hidden="true"></i>
+            <span>Previous</span>
+          </button>
+
+          <div class="page-numbers" id="pageNumbers" role="list">
+            <!-- Page numbers will be generated by JavaScript -->
+          </div>
+
+          <button
+            id="nextPage"
+            class="pagination-btn pagination-btn--next"
+            title="Go to next page"
+            aria-label="Go to next page"
+          >
+            <span>Next</span>
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+        </nav>
+
+        <!-- Page info at bottom -->
+        <div class="pagination-info">
+          <span id="pageInfo" class="pagination-status">Page 1 of 1</span>
+          <div class="jump-to-page">
+            <label for="jumpToPageInput">Go to:</label>
+            <input
+              type="number"
+              id="jumpToPageInput"
+              min="1"
+              placeholder="1"
+              aria-label="Jump to page number"
+            />
+            <button
+              id="jumpToPageBtn"
+              type="button"
+              title="Go to specified page"
+            >
+              Go
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="no-results" id="noResults" style="display: none">
+        <i data-lucide="search-x"></i>
+        <h3>No diagnoses found</h3>
+        <p>Try adjusting your search terms or filters</p>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>
+        &copy; <a href="https://github.com/shozuu" target="_blank" rel="noopener noreferrer">shozuu</a> | For educational and research
+        purposes only.
+      </p>
+    </footer>
+
+    <!-- Modal -->
+    <div id="diagnosisModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTitle" class="modal-title"></h2>
+          <button id="modalClose" class="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="modalPageNumber" class="modal-page-number"></div>
+          <div id="modalDefinition" class="modal-definition"></div>
+          <div id="modalSections"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+      // Initialize Lucide icons
+      lucide.createIcons();
+    </script>
+  </body>
+</html>
