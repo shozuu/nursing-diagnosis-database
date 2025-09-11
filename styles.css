@@ -581,6 +581,124 @@ body {
   font-weight: 600;
 }
 
+/* Enhanced search result styling */
+.diagnosis-card--search-result {
+  border-left: 3px solid #6366f1;
+  background: linear-gradient(135deg, #fefffe 0%, #f8fafc 100%);
+}
+
+.diagnosis-text--title-match {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  border: 1px solid #f59e0b;
+}
+
+.definition--highlighted {
+  background-color: #fef9e7;
+  border-left: 3px solid #f59e0b;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+}
+
+.section--highlighted {
+  background-color: #f8fafc;
+  border-left: 3px solid #6366f1;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 4px 0;
+}
+
+.field-match-indicator {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.75rem;
+  opacity: 0.8;
+  background: #6366f1;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.search-relevance {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.relevance-badge {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.diagnosis-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Search results summary styling */
+.search-results-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.results-count {
+  font-weight: 600;
+  color: #374151;
+}
+
+.search-insights {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 400;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+@media (min-width: 640px) {
+  .search-results-summary {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+/* Mobile-specific improvements for search elements */
+@media (max-width: 640px) {
+  .diagnosis-meta {
+    flex-wrap: wrap;
+  }
+
+  .relevance-badge {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .field-match-indicator {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
 /* Pagination Styles - Enhanced Mobile First Design */
 .pagination-container {
   display: flex;
@@ -1700,6 +1818,60 @@ body {
     align-self: flex-start;
   }
 
+  /* Enhanced search features - Mobile */
+  .diagnosis-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .relevance-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+  }
+
+  .field-match-indicator {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    border-radius: 6px;
+    margin-left: 4px;
+  }
+
+  .search-results-summary {
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .results-count {
+    font-size: 0.8rem;
+  }
+
+  .search-insights {
+    font-size: 0.7rem;
+    line-height: 1.3;
+  }
+
+  .diagnosis-text--title-match {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.9rem;
+  }
+
+  .definition--highlighted {
+    padding: 8px;
+    margin: 6px 0;
+    border-left-width: 2px;
+  }
+
+  .section--highlighted {
+    padding: 6px 8px;
+    margin: 2px 0;
+    border-left-width: 2px;
+  }
+
   .definition {
     font-size: 0.8rem;
     margin-bottom: 16px;
@@ -1886,6 +2058,67 @@ body {
   .page-number {
     font-size: 0.6rem;
     padding: 1px 4px;
+  }
+
+  /* Enhanced search features - Small Mobile */
+  .diagnosis-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    margin-top: 6px;
+  }
+
+  .relevance-badge {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+    border-radius: 6px;
+  }
+
+  .field-match-indicator {
+    font-size: 0.55rem;
+    padding: 1px 3px;
+    border-radius: 4px;
+    margin-left: 3px;
+  }
+
+  .search-results-summary {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .results-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .search-insights {
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+
+  .diagnosis-text--title-match {
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-size: 0.85rem;
+    border-width: 1px;
+  }
+
+  .definition--highlighted {
+    padding: 6px;
+    margin: 4px 0;
+    border-left-width: 2px;
+    border-radius: 4px;
+  }
+
+  .section--highlighted {
+    padding: 4px 6px;
+    margin: 2px 0;
+    border-left-width: 2px;
+    border-radius: 4px;
+  }
+
+  .diagnosis-card--search-result {
+    border-left-width: 2px;
   }
 
   .definition {

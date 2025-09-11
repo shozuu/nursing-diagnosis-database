@@ -31,6 +31,10 @@ async function loadData() {
   try {
     const response = await fetch("./nnn_content.json");
     diagnosesData = await response.json();
+
+    // Sort data alphabetically by diagnosis title by default
+    diagnosesData.sort((a, b) => a.diagnosis.localeCompare(b.diagnosis));
+
     filteredData = diagnosesData;
     currentPage = 1;
     updatePagination();
@@ -47,31 +51,52 @@ async function loadData() {
 function performSearch(query) {
   if (!query.trim()) {
     filteredData = applyFilter(diagnosesData, currentFilter);
+    // Clear any stored search metadata
+    filteredData.forEach((diagnosis) => {
+      delete diagnosis._searchMeta;
+    });
   } else {
     const searchTerms = query
       .toLowerCase()
       .split(" ")
       .filter((term) => term.length > 0);
 
-    filteredData = diagnosesData.filter((diagnosis) => {
-      const searchableText = [
-        diagnosis.diagnosis,
-        diagnosis.definition,
-        ...(diagnosis.defining_characteristics || []),
-        ...(diagnosis.associated_condition || []),
-        ...(diagnosis.related_factors || []),
-        ...(diagnosis.risk_factors || []),
-        ...(diagnosis.at_risk_population || []),
-        ...(diagnosis.suggested_noc_outcomes || []),
-        ...(diagnosis.suggested_nic_interventions || []),
-      ]
-        .join(" ")
-        .toLowerCase();
+    // First apply any active filters to get the base dataset
+    let baseData = applyFilter(diagnosesData, currentFilter);
 
-      return searchTerms.every((term) => searchableText.includes(term));
+    // Search across all fields and calculate relevance scores
+    let matchedResults = [];
+
+    baseData.forEach((diagnosis) => {
+      const searchResult = searchInAllFields(
+        diagnosis,
+        searchTerms,
+        query.toLowerCase()
+      );
+
+      if (searchResult.found) {
+        matchedResults.push({
+          diagnosis,
+          score: searchResult.score,
+          matchedFields: searchResult.matchedFields,
+        });
+      }
     });
 
-    filteredData = applyFilter(filteredData, currentFilter);
+    // Sort by relevance score (higher scores first)
+    matchedResults.sort((a, b) => b.score - a.score);
+
+    // Extract diagnosis objects and store search metadata
+    filteredData = matchedResults.map((result) => {
+      // Store search metadata for highlighting and display purposes
+      result.diagnosis._searchMeta = {
+        score: result.score,
+        matchedFields: result.matchedFields,
+        query: query.toLowerCase(),
+        searchTerms: searchTerms,
+      };
+      return result.diagnosis;
+    });
   }
 
   currentPage = 1;
@@ -81,6 +106,194 @@ function performSearch(query) {
 
   // Show/hide clear button
   clearBtn.style.display = query.trim() ? "block" : "none";
+}
+
+// Search across all fields with prioritization
+function searchInAllFields(diagnosis, searchTerms, originalQuery) {
+  let totalScore = 0;
+  let matchedFields = [];
+  let found = false;
+
+  // Field weights (higher = more important)
+  const fieldWeights = {
+    diagnosis: 100, // Highest priority for title matches
+    definition: 20, // High priority for definition
+    defining_characteristics: 15,
+    related_factors: 10,
+    risk_factors: 10,
+    associated_condition: 8,
+    at_risk_population: 8,
+    suggested_noc_outcomes: 5,
+    suggested_nic_interventions: 5,
+  };
+
+  // Search in diagnosis title (highest priority)
+  const titleResult = searchInField(
+    diagnosis.diagnosis,
+    searchTerms,
+    originalQuery,
+    fieldWeights.diagnosis
+  );
+  if (titleResult.found) {
+    totalScore += titleResult.score;
+    matchedFields.push("diagnosis");
+    found = true;
+  }
+
+  // Search in definition
+  if (diagnosis.definition) {
+    const defResult = searchInField(
+      diagnosis.definition,
+      searchTerms,
+      originalQuery,
+      fieldWeights.definition
+    );
+    if (defResult.found) {
+      totalScore += defResult.score;
+      matchedFields.push("definition");
+      found = true;
+    }
+  }
+
+  // Search in array fields
+  const arrayFields = [
+    "defining_characteristics",
+    "related_factors",
+    "risk_factors",
+    "associated_condition",
+    "at_risk_population",
+    "suggested_noc_outcomes",
+    "suggested_nic_interventions",
+  ];
+
+  arrayFields.forEach((fieldName) => {
+    if (diagnosis[fieldName] && Array.isArray(diagnosis[fieldName])) {
+      const combinedText = diagnosis[fieldName].join(" ");
+      const fieldResult = searchInField(
+        combinedText,
+        searchTerms,
+        originalQuery,
+        fieldWeights[fieldName]
+      );
+      if (fieldResult.found) {
+        totalScore += fieldResult.score;
+        matchedFields.push(fieldName);
+        found = true;
+      }
+    }
+  });
+
+  // Bonus for matching in title (even if other fields also match)
+  if (matchedFields.includes("diagnosis")) {
+    totalScore += 500; // Extra bonus for title matches
+  }
+
+  return {
+    found,
+    score: totalScore,
+    matchedFields,
+  };
+}
+
+// Search within a specific field
+function searchInField(fieldText, searchTerms, originalQuery, weight) {
+  if (!fieldText) return { found: false, score: 0 };
+
+  const text = fieldText.toLowerCase();
+  let score = 0;
+  let found = false;
+
+  // Check if all search terms are present
+  const allTermsFound = searchTerms.every((term) => text.includes(term));
+
+  if (!allTermsFound) {
+    return { found: false, score: 0 };
+  }
+
+  found = true;
+
+  // Exact phrase match (highest score)
+  if (text.includes(originalQuery)) {
+    score += 100 * weight;
+  }
+
+  // Exact match bonus
+  if (text === originalQuery) {
+    score += 200 * weight;
+  }
+
+  // Starts with query bonus
+  if (text.startsWith(originalQuery)) {
+    score += 80 * weight;
+  }
+
+  // Individual term scoring
+  searchTerms.forEach((term) => {
+    // Word boundary matches
+    const wordRegex = new RegExp(`\\b${escapeRegExp(term)}\\b`, "g");
+    const wordMatches = (text.match(wordRegex) || []).length;
+    score += wordMatches * 20 * weight;
+
+    // Starts with term bonus
+    if (text.startsWith(term)) {
+      score += 10 * weight;
+    }
+
+    // Position bonus (earlier appearances score higher)
+    const firstIndex = text.indexOf(term);
+    if (firstIndex !== -1) {
+      const positionBonus = Math.max(0, 20 - firstIndex) * weight;
+      score += positionBonus;
+    }
+  });
+
+  // Length penalty for less specific matches
+  score -= text.length * 0.1 * weight;
+
+  return { found, score };
+}
+
+// Calculate relevance score for search results (legacy function, now used by searchInField)
+function calculateRelevanceScore(title, searchTerms, originalQuery) {
+  let score = 0;
+
+  // Bonus for exact match of the entire query
+  if (title === originalQuery) {
+    score += 1000;
+  }
+
+  // Bonus for exact match as a phrase
+  if (title.includes(originalQuery)) {
+    score += 500;
+  }
+
+  // Bonus for title starting with the search query
+  if (title.startsWith(originalQuery)) {
+    score += 300;
+  }
+
+  // Score based on individual term matches
+  searchTerms.forEach((term) => {
+    // Exact word match (word boundaries)
+    const wordRegex = new RegExp(`\\b${escapeRegExp(term)}\\b`, "g");
+    const wordMatches = (title.match(wordRegex) || []).length;
+    score += wordMatches * 100;
+
+    // Bonus if term appears at the beginning of the title
+    if (title.startsWith(term)) {
+      score += 50;
+    }
+
+    // Bonus for shorter titles (more specific matches)
+    if (wordMatches > 0) {
+      score += Math.max(0, 50 - title.length);
+    }
+  });
+
+  // Penalty for longer titles (less specific)
+  score -= title.length * 0.5;
+
+  return score;
 }
 
 // Apply filter based on diagnosis type
@@ -119,24 +332,28 @@ function highlightSearchTerms(text, query) {
   // Sort terms by length (longest first) to avoid partial matches
   searchTerms.sort((a, b) => b.length - a.length);
 
-  let highlightedText = text;
+  let result = text;
 
+  // Process each search term
   searchTerms.forEach((term) => {
-    // Simple approach: avoid highlighting already highlighted text
-    if (
-      !highlightedText
-        .toLowerCase()
-        .includes(`<span class="highlight">${term.toLowerCase()}</span>`)
-    ) {
-      const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
-      highlightedText = highlightedText.replace(
-        regex,
-        '<span class="highlight">$1</span>'
-      );
-    }
+    // Split text by existing highlight tags to avoid nested highlighting
+    const parts = result.split(/(<span class="highlight">.*?<\/span>)/gi);
+
+    result = parts
+      .map((part) => {
+        // Don't process parts that are already highlighted
+        if (part.toLowerCase().includes('<span class="highlight">')) {
+          return part;
+        }
+
+        // Apply highlighting to non-highlighted parts
+        const regex = new RegExp(`\\b(${escapeRegExp(term)})\\b`, "gi");
+        return part.replace(regex, '<span class="highlight">$1</span>');
+      })
+      .join("");
   });
 
-  return highlightedText;
+  return result;
 }
 
 // Escape special characters for regex
@@ -147,6 +364,7 @@ function escapeRegExp(string) {
 // Create diagnosis card HTML
 function createDiagnosisCard(diagnosis) {
   const query = searchInput.value;
+  const searchMeta = diagnosis._searchMeta;
 
   // Determine card type for styling
   const getCardType = (diagnosisName) => {
@@ -158,13 +376,20 @@ function createDiagnosisCard(diagnosis) {
 
   const cardType = getCardType(diagnosis.diagnosis);
 
-  // Helper function to create compact sections
-  const createCompactSection = (title, content) => {
+  // Helper function to create compact sections with field match indicators
+  const createCompactSection = (title, content, fieldName) => {
     if (!content || content.length === 0) return "";
     const text = Array.isArray(content) ? content.join(", ") : content;
+
+    // Check if this field had matches in the search
+    const hasMatch = searchMeta && searchMeta.matchedFields.includes(fieldName);
+    const matchIndicator = hasMatch
+      ? '<span class="field-match-indicator" title="Search match found in this field">🔍</span>'
+      : "";
+
     return `
-      <div class="section">
-        <div class="section-title">${title}</div>
+      <div class="section ${hasMatch ? "section--highlighted" : ""}">
+        <div class="section-title">${title} ${matchIndicator}</div>
         <div class="section-content-text">${highlightSearchTerms(
           text,
           query
@@ -173,20 +398,53 @@ function createDiagnosisCard(diagnosis) {
     `;
   };
 
+  // Generate relevance indicator for search results
+  const relevanceIndicator = searchMeta
+    ? `
+    <div class="search-relevance" title="Search relevance score: ${Math.round(
+      searchMeta.score
+    )}">
+      <span class="relevance-badge">
+        ${searchMeta.matchedFields.includes("diagnosis") ? "📌" : "🔍"} 
+        ${searchMeta.matchedFields.length} field${
+        searchMeta.matchedFields.length !== 1 ? "s" : ""
+      }
+      </span>
+    </div>
+  `
+    : "";
+
   return `
-    <div class="diagnosis-card diagnosis-card--${cardType}">
+    <div class="diagnosis-card diagnosis-card--${cardType} ${
+    searchMeta ? "diagnosis-card--search-result" : ""
+  }">
       <div class="diagnosis-title">
-        <span class="diagnosis-text">${highlightSearchTerms(
-          diagnosis.diagnosis,
-          query
-        )}</span>
-        <span class="page-number">Page ${diagnosis.page_num}</span>
+        <span class="diagnosis-text ${
+          searchMeta && searchMeta.matchedFields.includes("diagnosis")
+            ? "diagnosis-text--title-match"
+            : ""
+        }">
+          ${highlightSearchTerms(diagnosis.diagnosis, query)}
+        </span>
+        <div class="diagnosis-meta">
+          <span class="page-number">Page ${diagnosis.page_num}</span>
+          ${relevanceIndicator}
+        </div>
       </div>
       
       ${
         diagnosis.definition
           ? `
-        <div class="definition">
+        <div class="definition ${
+          searchMeta && searchMeta.matchedFields.includes("definition")
+            ? "definition--highlighted"
+            : ""
+        }">
+          ${
+            searchMeta && searchMeta.matchedFields.includes("definition")
+              ? '<span class="field-match-indicator" title="Search match found in definition">🔍</span>'
+              : ""
+          }
           ${highlightSearchTerms(diagnosis.definition, query)}
         </div>
       `
@@ -195,22 +453,38 @@ function createDiagnosisCard(diagnosis) {
       
       ${createCompactSection(
         "Characteristics",
-        diagnosis.defining_characteristics
+        diagnosis.defining_characteristics,
+        "defining_characteristics"
       )}
-      ${createCompactSection("Related Factors", diagnosis.related_factors)}
-      ${createCompactSection("Risk Factors", diagnosis.risk_factors)}
+      ${createCompactSection(
+        "Related Factors",
+        diagnosis.related_factors,
+        "related_factors"
+      )}
+      ${createCompactSection(
+        "Risk Factors",
+        diagnosis.risk_factors,
+        "risk_factors"
+      )}
       ${createCompactSection(
         "Associated Conditions",
-        diagnosis.associated_condition
+        diagnosis.associated_condition,
+        "associated_condition"
       )}
       ${createCompactSection(
         "At Risk Population",
-        diagnosis.at_risk_population
+        diagnosis.at_risk_population,
+        "at_risk_population"
       )}
-      ${createCompactSection("NOC Outcomes", diagnosis.suggested_noc_outcomes)}
+      ${createCompactSection(
+        "NOC Outcomes",
+        diagnosis.suggested_noc_outcomes,
+        "suggested_noc_outcomes"
+      )}
       ${createCompactSection(
         "NIC Interventions",
-        diagnosis.suggested_nic_interventions
+        diagnosis.suggested_nic_interventions,
+        "suggested_nic_interventions"
       )}
     </div>
   `;
@@ -446,13 +720,69 @@ function displayCurrentPage() {
   resultsContainer.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// Update results count
+// Update results count with search insights
 function updateResultsCount(current, total) {
+  const query = searchInput.value.trim();
+
   if (current === total) {
     resultsCount.textContent = `Showing all ${total} diagnoses`;
+  } else if (query) {
+    // Generate search insights for filtered results
+    const insights = generateSearchInsights(filteredData);
+    const insightsText =
+      insights.length > 0 ? ` • ${insights.join(" • ")}` : "";
+    resultsCount.innerHTML = `
+      <div class="search-results-summary">
+        <span class="results-count">Found ${current} of ${total} diagnoses</span>
+        <span class="search-insights">${insightsText}</span>
+      </div>
+    `;
   } else {
     resultsCount.textContent = `Showing ${current} of ${total} diagnoses`;
   }
+}
+
+// Generate insights about search results
+function generateSearchInsights(results) {
+  if (!results.length || !results[0]._searchMeta) return [];
+
+  const insights = [];
+
+  // Count title matches
+  const titleMatches = results.filter(
+    (r) => r._searchMeta && r._searchMeta.matchedFields.includes("diagnosis")
+  ).length;
+  if (titleMatches > 0) {
+    insights.push(
+      `${titleMatches} title match${titleMatches !== 1 ? "es" : ""}`
+    );
+  }
+
+  // Count definition matches
+  const defMatches = results.filter(
+    (r) => r._searchMeta && r._searchMeta.matchedFields.includes("definition")
+  ).length;
+  if (defMatches > 0) {
+    insights.push(
+      `${defMatches} definition match${defMatches !== 1 ? "es" : ""}`
+    );
+  }
+
+  // Count other field matches
+  const otherMatches = results.filter((r) => {
+    if (!r._searchMeta) return false;
+    return r._searchMeta.matchedFields.some(
+      (field) => !["diagnosis", "definition"].includes(field)
+    );
+  }).length;
+
+  if (otherMatches > 0) {
+    insights.push(
+      `${otherMatches} other field match${otherMatches !== 1 ? "es" : ""}`
+    );
+  }
+
+  return insights;
 }
 
 // Event Listeners
