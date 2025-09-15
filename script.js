@@ -64,9 +64,14 @@ async function loadData() {
 }
 
 // Search functionality
+// Add debugging logs to performSearch
 function performSearch(query = "") {
+  console.log("Search query:", query);
+
   if (!query.trim()) {
     filteredData = applyFilter(diagnosesData, currentFilter);
+    console.log("Filtered data after clearing search:", filteredData);
+
     // Clear any stored search metadata
     filteredData.forEach((diagnosis) => {
       delete diagnosis._searchMeta;
@@ -77,8 +82,11 @@ function performSearch(query = "") {
       .split(" ")
       .filter((term) => term.length > 0);
 
+    console.log("Search terms:", searchTerms);
+
     // First apply any active filters to get the base dataset
     let baseData = applyFilter(diagnosesData, currentFilter);
+    console.log("Base data after applying filter:", baseData);
 
     // Search across all fields and calculate relevance scores
     let matchedResults = [];
@@ -99,6 +107,8 @@ function performSearch(query = "") {
       }
     });
 
+    console.log("Matched results:", matchedResults);
+
     // Sort by relevance score (higher scores first)
     matchedResults.sort((a, b) => b.score - a.score);
 
@@ -113,6 +123,8 @@ function performSearch(query = "") {
       };
       return result.diagnosis;
     });
+
+    console.log("Filtered data after search:", filteredData);
   }
 
   currentPage = 1;
@@ -132,7 +144,7 @@ function searchInAllFields(diagnosis, searchTerms, originalQuery) {
 
   // Field weights (higher = more important)
   const fieldWeights = {
-    diagnosis: 100, // Highest priority for title matches
+    diagnosis: 200, // Increased priority for title matches
     definition: 20, // High priority for definition
     defining_characteristics: 15,
     related_factors: 10,
@@ -141,6 +153,8 @@ function searchInAllFields(diagnosis, searchTerms, originalQuery) {
     at_risk_population: 8,
     suggested_noc_outcomes: 5,
     suggested_nic_interventions: 5,
+    client_outcomes: 25, // New field weight
+    references: 10, // New field weight
   };
 
   // Search in diagnosis title (highest priority)
@@ -199,6 +213,48 @@ function searchInAllFields(diagnosis, searchTerms, originalQuery) {
     }
   });
 
+  // Search in client outcomes
+  if (diagnosis.clientOutcomes) {
+    const clientWillResult = searchInField(
+      diagnosis.clientOutcomes.client_will,
+      searchTerms,
+      originalQuery,
+      fieldWeights.client_outcomes
+    );
+    if (clientWillResult.found) {
+      totalScore += clientWillResult.score;
+      matchedFields.push("client_outcomes:client_will");
+      found = true;
+    }
+
+    const outcomesResult = searchInField(
+      diagnosis.clientOutcomes.outcomes.join(" "),
+      searchTerms,
+      originalQuery,
+      fieldWeights.client_outcomes
+    );
+    if (outcomesResult.found) {
+      totalScore += outcomesResult.score;
+      matchedFields.push("client_outcomes:outcomes");
+      found = true;
+    }
+  }
+
+  // Search in references
+  if (diagnosis.references) {
+    const referencesResult = searchInField(
+      diagnosis.references,
+      searchTerms,
+      originalQuery,
+      fieldWeights.references
+    );
+    if (referencesResult.found) {
+      totalScore += referencesResult.score;
+      matchedFields.push("references");
+      found = true;
+    }
+  }
+
   // Bonus for matching in title (even if other fields also match)
   if (matchedFields.includes("diagnosis")) {
     totalScore += 500; // Extra bonus for title matches
@@ -213,7 +269,8 @@ function searchInAllFields(diagnosis, searchTerms, originalQuery) {
 
 // Search within a specific field
 function searchInField(fieldText, searchTerms, originalQuery, weight) {
-  if (!fieldText) return { found: false, score: 0 };
+  if (!fieldText || typeof fieldText !== "string")
+    return { found: false, score: 0 };
 
   const text = fieldText.toLowerCase();
   let score = 0;
@@ -230,41 +287,18 @@ function searchInField(fieldText, searchTerms, originalQuery, weight) {
 
   // Exact phrase match (highest score)
   if (text.includes(originalQuery)) {
-    score += 100 * weight;
+    score += weight * 2;
   }
 
   // Exact match bonus
   if (text === originalQuery) {
-    score += 200 * weight;
+    score += weight * 3;
   }
 
   // Starts with query bonus
   if (text.startsWith(originalQuery)) {
-    score += 80 * weight;
+    score += weight * 1.5;
   }
-
-  // Individual term scoring
-  searchTerms.forEach((term) => {
-    // Word boundary matches
-    const wordRegex = new RegExp(`\\b${escapeRegExp(term)}\\b`, "g");
-    const wordMatches = (text.match(wordRegex) || []).length;
-    score += wordMatches * 20 * weight;
-
-    // Starts with term bonus
-    if (text.startsWith(term)) {
-      score += 10 * weight;
-    }
-
-    // Position bonus (earlier appearances score higher)
-    const firstIndex = text.indexOf(term);
-    if (firstIndex !== -1) {
-      const positionBonus = Math.max(0, 20 - firstIndex) * weight;
-      score += positionBonus;
-    }
-  });
-
-  // Length penalty for less specific matches
-  score -= text.length * 0.1 * weight;
 
   return { found, score };
 }
@@ -335,6 +369,7 @@ function applyFilter(data, filter) {
 }
 
 // Highlight search terms in text
+// Update the highlightSearchTerms function to handle non-string values
 function highlightSearchTerms(text, query) {
   if (!query.trim()) return text;
 
@@ -348,7 +383,7 @@ function highlightSearchTerms(text, query) {
   // Sort terms by length (longest first) to avoid partial matches
   searchTerms.sort((a, b) => b.length - a.length);
 
-  let result = text;
+  let result = typeof text === "string" ? text : ""; // Ensure result is a string
 
   // Process each search term
   searchTerms.forEach((term) => {
@@ -363,7 +398,7 @@ function highlightSearchTerms(text, query) {
         }
 
         // Apply highlighting to non-highlighted parts
-        const regex = new RegExp(`\\b(${escapeRegExp(term)})\\b`, "gi");
+        const regex = new RegExp(`\b(${escapeRegExp(term)})\b`, "gi");
         return part.replace(regex, '<span class="highlight">$1</span>');
       })
       .join("");
