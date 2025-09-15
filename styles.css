@@ -1865,8 +1865,8 @@ body {
   .definition {
     font-size: 0.8rem;
     margin-bottom: 16px;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    /* -webkit-line-clamp: 3;
+    line-clamp: 3; */
   }
 
   .section {
