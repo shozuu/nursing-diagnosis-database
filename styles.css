@@ -424,6 +424,10 @@ body {
   border-color: #dcedc8;
 }
 
+.outcome-item{
+  margin-left: 30px;
+}
+
 /* No Results */
 .no-results {
   text-align: center;
@@ -1571,6 +1575,8 @@ body {
 
 .modal-section {
   margin-bottom: 20px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .modal-section:last-child {

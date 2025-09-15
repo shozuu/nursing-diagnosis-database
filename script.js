@@ -64,7 +64,7 @@ async function loadData() {
 }
 
 // Search functionality
-function performSearch(query) {
+function performSearch(query = "") {
   if (!query.trim()) {
     filteredData = applyFilter(diagnosesData, currentFilter);
     // Clear any stored search metadata
@@ -493,12 +493,12 @@ function createDiagnosisCard(diagnosis) {
         "at_risk_population"
       )}
       ${createCompactSection(
-        "NOC Outcomes",
+        "Suggested Outcomes",
         diagnosis.suggestedNOCOutcomes,
         "suggested_noc_outcomes"
       )}
       ${createCompactSection(
-        "NIC Interventions",
+        "Suggested Interventions",
         diagnosis.suggestedNICInterventions,
         "suggested_nic_interventions"
       )}
@@ -1073,11 +1073,11 @@ function openModal(diagnosis) {
     diagnosis.atRiskPopulation
   );
   sectionsHTML += createModalSection(
-    "NOC Outcomes",
+    "Suggested Outcomes",
     diagnosis.suggestedNOCOutcomes
   );
   sectionsHTML += createModalSection(
-    "NIC Interventions",
+    "Suggested Interventions",
     diagnosis.suggestedNICInterventions
   );
 
@@ -1085,14 +1085,15 @@ function openModal(diagnosis) {
   if (diagnosis.clientOutcomes) {
     sectionsHTML += `
       <div class="modal-section">
-        <h3 class="modal-section-title">Client Outcomes</h3>
+        <h3 class="modal-section-title">Client Outcomes (${
+          diagnosis.clientOutcomes.client_will
+        })</h3>
         <div class="modal-section-content">
-          <p>${diagnosis.clientOutcomes.client_will}</p>
-          <div class="outcomes-list">
+          <ul class="outcomes-list">
             ${diagnosis.clientOutcomes.outcomes
-              .map((outcome) => `<p class="outcome-item">${outcome}</p>`)
+              .map((outcome) => `<li class="outcome-item">${outcome}</li>`)
               .join("")}
-          </div>
+          </ul>
         </div>
       </div>
     `;
