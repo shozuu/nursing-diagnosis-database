@@ -69,6 +69,10 @@ function performSearch(query = "") {
   console.log("Search query:", query);
 
   if (!query.trim()) {
+    // Clear the search metadata for all diagnoses
+    diagnosesData.forEach((diagnosis) => {
+      delete diagnosis._searchMeta;
+    });
     filteredData = applyFilter(diagnosesData, currentFilter);
     console.log("Filtered data after clearing search:", filteredData);
 
@@ -92,7 +96,7 @@ function performSearch(query = "") {
     let matchedResults = [];
 
     baseData.forEach((diagnosis) => {
-      const searchResult = searchInAllFields(
+      const searchResult = searchInDiagnosisTitle(
         diagnosis,
         searchTerms,
         query.toLowerCase()
@@ -136,129 +140,48 @@ function performSearch(query = "") {
   clearBtn.style.display = query.trim() ? "block" : "none";
 }
 
-// Search across all fields with prioritization
-function searchInAllFields(diagnosis, searchTerms, originalQuery) {
+// Search only in diagnosis titles
+function searchInDiagnosisTitle(diagnosis, searchTerms, originalQuery) {
   let totalScore = 0;
   let matchedFields = [];
   let found = false;
 
-  // Field weights (higher = more important)
-  const fieldWeights = {
-    diagnosis: 200, // Increased priority for title matches
-    definition: 20, // High priority for definition
-    defining_characteristics: 15,
-    related_factors: 10,
-    risk_factors: 10,
-    associated_condition: 8,
-    at_risk_population: 8,
-    suggested_noc_outcomes: 5,
-    suggested_nic_interventions: 5,
-    client_outcomes: 25, // New field weight
-    references: 10, // New field weight
-  };
+  // Field weight for diagnosis title
+  const diagnosisWeight = 200;
 
-  // Search in diagnosis title (highest priority)
+  console.log(
+    "Searching diagnosis:",
+    diagnosis.diagnosis,
+    "for terms:",
+    searchTerms
+  );
+
+  // Search only in diagnosis title
   const titleResult = searchInField(
     diagnosis.diagnosis,
     searchTerms,
     originalQuery,
-    fieldWeights.diagnosis
+    diagnosisWeight
   );
+
+  console.log("Title result for", diagnosis.diagnosis, ":", titleResult);
+
   if (titleResult.found) {
     totalScore += titleResult.score;
     matchedFields.push("diagnosis");
     found = true;
   }
 
-  // Search in definition
-  if (diagnosis.definition) {
-    const defResult = searchInField(
-      diagnosis.definition,
-      searchTerms,
-      originalQuery,
-      fieldWeights.definition
-    );
-    if (defResult.found) {
-      totalScore += defResult.score;
-      matchedFields.push("definition");
-      found = true;
-    }
-  }
-
-  // Search in array fields
-  const arrayFields = [
-    "defining_characteristics",
-    "related_factors",
-    "risk_factors",
-    "associated_condition",
-    "at_risk_population",
-    "suggested_noc_outcomes",
-    "suggested_nic_interventions",
-  ];
-
-  arrayFields.forEach((fieldName) => {
-    if (diagnosis[fieldName] && Array.isArray(diagnosis[fieldName])) {
-      const combinedText = diagnosis[fieldName].join(" ");
-      const fieldResult = searchInField(
-        combinedText,
-        searchTerms,
-        originalQuery,
-        fieldWeights[fieldName]
-      );
-      if (fieldResult.found) {
-        totalScore += fieldResult.score;
-        matchedFields.push(fieldName);
-        found = true;
-      }
-    }
-  });
-
-  // Search in client outcomes
-  if (diagnosis.clientOutcomes) {
-    const clientWillResult = searchInField(
-      diagnosis.clientOutcomes.client_will,
-      searchTerms,
-      originalQuery,
-      fieldWeights.client_outcomes
-    );
-    if (clientWillResult.found) {
-      totalScore += clientWillResult.score;
-      matchedFields.push("client_outcomes:client_will");
-      found = true;
-    }
-
-    const outcomesResult = searchInField(
-      diagnosis.clientOutcomes.outcomes.join(" "),
-      searchTerms,
-      originalQuery,
-      fieldWeights.client_outcomes
-    );
-    if (outcomesResult.found) {
-      totalScore += outcomesResult.score;
-      matchedFields.push("client_outcomes:outcomes");
-      found = true;
-    }
-  }
-
-  // Search in references
-  if (diagnosis.references) {
-    const referencesResult = searchInField(
-      diagnosis.references,
-      searchTerms,
-      originalQuery,
-      fieldWeights.references
-    );
-    if (referencesResult.found) {
-      totalScore += referencesResult.score;
-      matchedFields.push("references");
-      found = true;
-    }
-  }
-
-  // Bonus for matching in title (even if other fields also match)
+  // Bonus for title matches
   if (matchedFields.includes("diagnosis")) {
     totalScore += 500; // Extra bonus for title matches
   }
+
+  console.log("Final result for", diagnosis.diagnosis, ":", {
+    found,
+    score: totalScore,
+    matchedFields,
+  });
 
   return {
     found,
@@ -276,8 +199,12 @@ function searchInField(fieldText, searchTerms, originalQuery, weight) {
   let score = 0;
   let found = false;
 
+  console.log("Searching field text:", text, "for terms:", searchTerms);
+
   // Check if all search terms are present
   const allTermsFound = searchTerms.every((term) => text.includes(term));
+
+  console.log("All terms found:", allTermsFound);
 
   if (!allTermsFound) {
     return { found: false, score: 0 };
@@ -299,6 +226,8 @@ function searchInField(fieldText, searchTerms, originalQuery, weight) {
   if (text.startsWith(originalQuery)) {
     score += weight * 1.5;
   }
+
+  console.log("Field search result:", { found, score });
 
   return { found, score };
 }
@@ -414,9 +343,6 @@ function escapeRegExp(string) {
 
 // Create diagnosis card HTML
 function createDiagnosisCard(diagnosis) {
-  const query = searchInput.value;
-  const searchMeta = diagnosis._searchMeta;
-
   // Determine card type for styling
   const getCardType = (diagnosisName) => {
     const name = diagnosisName.toLowerCase();
@@ -427,116 +353,38 @@ function createDiagnosisCard(diagnosis) {
 
   const cardType = getCardType(diagnosis.diagnosis);
 
-  // Helper function to create compact sections with field match indicators
-  const createCompactSection = (title, content, fieldName) => {
+  // Helper function to create sections for card content
+  const createSection = (title, content) => {
     if (!content || content.length === 0) return "";
     const text = Array.isArray(content) ? content.join(", ") : content;
 
-    // Check if this field had matches in the search
-    const hasMatch = searchMeta && searchMeta.matchedFields.includes(fieldName);
-    const matchIndicator = hasMatch
-      ? '<span class="field-match-indicator" title="Search match found in this field">🔍</span>'
-      : "";
-
     return `
-      <div class="section ${hasMatch ? "section--highlighted" : ""}">
-        <div class="section-title">${title} ${matchIndicator}</div>
-        <div class="section-content-text">${highlightSearchTerms(
-          text,
-          query
-        )}</div>
+      <div class="section">
+        <div class="section-title">${title}</div>
+        <div class="section-content-text">${text}</div>
       </div>
     `;
   };
 
-  // Generate relevance indicator for search results
-  const relevanceIndicator = searchMeta
-    ? `
-    <div class="search-relevance" title="Search relevance score: ${Math.round(
-      searchMeta.score
-    )}">
-      <span class="relevance-badge">
-        ${searchMeta.matchedFields.includes("diagnosis") ? "📌" : "🔍"} 
-        ${searchMeta.matchedFields.length} field${
-        searchMeta.matchedFields.length !== 1 ? "s" : ""
-      }
-      </span>
-    </div>
-  `
-    : "";
-
   return `
-    <div class="diagnosis-card diagnosis-card--${cardType} ${
-    searchMeta ? "diagnosis-card--search-result" : ""
-  }">
+    <div class="diagnosis-card diagnosis-card--${cardType}">
       <div class="diagnosis-title">
-        <span class="diagnosis-text ${
-          searchMeta && searchMeta.matchedFields.includes("diagnosis")
-            ? "diagnosis-text--title-match"
-            : ""
-        }">
-          ${highlightSearchTerms(diagnosis.diagnosis, query)}
-        </span>
-        <div class="diagnosis-meta">
-          <span class="page-number">Page ${diagnosis.pageNum}</span>
-          ${relevanceIndicator}
-        </div>
+        <span class="diagnosis-text">${diagnosis.diagnosis}</span>
       </div>
-      
-      ${
-        diagnosis.definition
-          ? `
-        <div class="definition ${
-          searchMeta && searchMeta.matchedFields.includes("definition")
-            ? "definition--highlighted"
-            : ""
-        }">
-          ${
-            searchMeta && searchMeta.matchedFields.includes("definition")
-              ? '<span class="field-match-indicator" title="Search match found in definition">🔍</span>'
-              : ""
-          }
-          ${highlightSearchTerms(diagnosis.definition, query)}
-        </div>
-      `
-          : ""
-      }
-      
-      ${createCompactSection(
-        "Characteristics",
-        diagnosis.definingCharacteristics,
-        "defining_characteristics"
-      )}
-      ${createCompactSection(
-        "Related Factors",
-        diagnosis.relatedFactors,
-        "related_factors"
-      )}
-      ${createCompactSection(
-        "Risk Factors",
-        diagnosis.riskFactors,
-        "risk_factors"
-      )}
-      ${createCompactSection(
-        "Associated Conditions",
-        diagnosis.associatedConditions,
-        "associated_condition"
-      )}
-      ${createCompactSection(
-        "At Risk Population",
-        diagnosis.atRiskPopulation,
-        "at_risk_population"
-      )}
-      ${createCompactSection(
-        "Suggested Outcomes",
-        diagnosis.suggestedNOCOutcomes,
-        "suggested_noc_outcomes"
-      )}
-      ${createCompactSection(
-        "Suggested Interventions",
-        diagnosis.suggestedNICInterventions,
-        "suggested_nic_interventions"
-      )}
+      <div class="diagnosis-content">
+        ${createSection("Characteristics", diagnosis.characteristics)}
+        ${createSection("Related Factors", diagnosis.relatedFactors)}
+        ${createSection(
+          "Associated Conditions",
+          diagnosis.associatedConditions
+        )}
+        ${createSection("At Risk Population", diagnosis.atRiskPopulation)}
+        ${createSection("Suggested Outcomes", diagnosis.suggestedOutcomes)}
+        ${createSection(
+          "Suggested Interventions",
+          diagnosis.suggestedInterventions
+        )}
+      </div>
     </div>
   `;
 }
@@ -701,16 +549,33 @@ function displayCurrentPage() {
   resultsContainer.innerHTML = "";
   noResults.style.display = "none";
 
+  console.log(
+    "Displaying page with filteredData:",
+    filteredData.length,
+    "items"
+  );
+  console.log(
+    "First few diagnoses:",
+    filteredData.slice(0, 5).map((d) => d.diagnosis)
+  );
+
   if (filteredData.length === 0) {
     noResults.style.display = "block";
     paginationContainer.style.display = "none";
     return;
   }
 
-  // Sort results by diagnosis name
-  const sortedData = [...filteredData].sort((a, b) =>
-    a.diagnosis.localeCompare(b.diagnosis)
-  );
+  // Sort results: preserve relevance order for search results, otherwise sort by diagnosis name
+  let sortedData;
+  if (filteredData.length > 0 && filteredData[0]._searchMeta) {
+    // Already sorted by relevance in performSearch
+    sortedData = [...filteredData];
+  } else {
+    // Sort alphabetically for non-search results
+    sortedData = [...filteredData].sort((a, b) =>
+      a.diagnosis.localeCompare(b.diagnosis)
+    );
+  }
 
   // Calculate start and end indices for current page
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -722,6 +587,12 @@ function displayCurrentPage() {
   resultsContainer.style.transition = "opacity 0.3s ease";
 
   currentPageData.forEach((diagnosis, index) => {
+    console.log(
+      `Creating card ${index + 1}:`,
+      diagnosis.diagnosis,
+      "has searchMeta:",
+      !!diagnosis._searchMeta
+    );
     setTimeout(() => {
       // Create a temporary container to parse the HTML
       const tempDiv = document.createElement("div");
