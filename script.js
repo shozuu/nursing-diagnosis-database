@@ -29,14 +29,30 @@ const jumpToPageBtn = document.getElementById("jumpToPageBtn");
 // Load data from JSON file
 async function loadData() {
   try {
-    const response = await fetch("./nnn_content.json");
-    diagnosesData = await response.json();
+    const response = await fetch("new_nnn_content.json");
+    const data = await response.json();
 
-    // Sort data alphabetically by diagnosis title by default
-    diagnosesData.sort((a, b) => a.diagnosis.localeCompare(b.diagnosis));
+    diagnosesData = data.map((item) => {
+      return {
+        diagnosis: item.diagnosis,
+        pageNum: item.page_num,
+        definition: item.definition,
+        definingCharacteristics: item.defining_characteristics || [],
+        relatedFactors: item.related_factors || [],
+        riskFactors: item.risk_factors || [],
+        atRiskPopulation: item["at-risk_population"] || [],
+        associatedConditions: item.associated_conditions || [],
+        suggestedNOCOutcomes: item.suggested_noc_outcomes || [],
+        suggestedNICInterventions: item.suggested_nic_interventions || [],
+        clientOutcomes: item.client_outcomes || null,
+        references:
+          item[
+            "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references"
+          ] || null,
+      };
+    });
 
     filteredData = diagnosesData;
-    currentPage = 1;
     updatePagination();
     displayCurrentPage();
     updateResultsCount(filteredData.length, diagnosesData.length);
@@ -427,7 +443,7 @@ function createDiagnosisCard(diagnosis) {
           ${highlightSearchTerms(diagnosis.diagnosis, query)}
         </span>
         <div class="diagnosis-meta">
-          <span class="page-number">Page ${diagnosis.page_num}</span>
+          <span class="page-number">Page ${diagnosis.pageNum}</span>
           ${relevanceIndicator}
         </div>
       </div>
@@ -453,37 +469,37 @@ function createDiagnosisCard(diagnosis) {
       
       ${createCompactSection(
         "Characteristics",
-        diagnosis.defining_characteristics,
+        diagnosis.definingCharacteristics,
         "defining_characteristics"
       )}
       ${createCompactSection(
         "Related Factors",
-        diagnosis.related_factors,
+        diagnosis.relatedFactors,
         "related_factors"
       )}
       ${createCompactSection(
         "Risk Factors",
-        diagnosis.risk_factors,
+        diagnosis.riskFactors,
         "risk_factors"
       )}
       ${createCompactSection(
         "Associated Conditions",
-        diagnosis.associated_condition,
+        diagnosis.associatedConditions,
         "associated_condition"
       )}
       ${createCompactSection(
         "At Risk Population",
-        diagnosis.at_risk_population,
+        diagnosis.atRiskPopulation,
         "at_risk_population"
       )}
       ${createCompactSection(
         "NOC Outcomes",
-        diagnosis.suggested_noc_outcomes,
+        diagnosis.suggestedNOCOutcomes,
         "suggested_noc_outcomes"
       )}
       ${createCompactSection(
         "NIC Interventions",
-        diagnosis.suggested_nic_interventions,
+        diagnosis.suggestedNICInterventions,
         "suggested_nic_interventions"
       )}
     </div>
@@ -1017,7 +1033,7 @@ function openModal(diagnosis) {
 
   // Populate modal content
   modalTitle.textContent = diagnosis.diagnosis;
-  modalPageNumber.textContent = "Page " + diagnosis.page_num;
+  modalPageNumber.textContent = "Page " + diagnosis.pageNum;
   modalDefinition.textContent = diagnosis.definition;
 
   // Clear and populate sections
@@ -1041,29 +1057,58 @@ function openModal(diagnosis) {
 
   sectionsHTML += createModalSection(
     "Characteristics",
-    diagnosis.defining_characteristics
+    diagnosis.definingCharacteristics
   );
   sectionsHTML += createModalSection(
     "Related Factors",
-    diagnosis.related_factors
+    diagnosis.relatedFactors
   );
-  sectionsHTML += createModalSection("Risk Factors", diagnosis.risk_factors);
+  sectionsHTML += createModalSection("Risk Factors", diagnosis.riskFactors);
   sectionsHTML += createModalSection(
     "Associated Conditions",
-    diagnosis.associated_condition
+    diagnosis.associatedConditions
   );
   sectionsHTML += createModalSection(
     "At Risk Population",
-    diagnosis.at_risk_population
+    diagnosis.atRiskPopulation
   );
   sectionsHTML += createModalSection(
     "NOC Outcomes",
-    diagnosis.suggested_noc_outcomes
+    diagnosis.suggestedNOCOutcomes
   );
   sectionsHTML += createModalSection(
     "NIC Interventions",
-    diagnosis.suggested_nic_interventions
+    diagnosis.suggestedNICInterventions
   );
+
+  // Client Outcomes section
+  if (diagnosis.clientOutcomes) {
+    sectionsHTML += `
+      <div class="modal-section">
+        <h3 class="modal-section-title">Client Outcomes</h3>
+        <div class="modal-section-content">
+          <p>${diagnosis.clientOutcomes.client_will}</p>
+          <div class="outcomes-list">
+            ${diagnosis.clientOutcomes.outcomes
+              .map((outcome) => `<p class="outcome-item">${outcome}</p>`)
+              .join("")}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // References section
+  if (diagnosis.references) {
+    sectionsHTML += `
+      <div class="modal-section">
+        <h3 class="modal-section-title">References</h3>
+        <div class="modal-section-content">
+          <p>${diagnosis.references}</p>
+        </div>
+      </div>
+    `;
+  }
 
   if (sectionsHTML) {
     modalSections.innerHTML = sectionsHTML;
