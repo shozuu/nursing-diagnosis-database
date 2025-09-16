@@ -252,11 +252,21 @@ function createDiagnosisCard(diagnosis) {
 
 // Generate the HTML content for a card
 function generateCardHTML(diagnosis, cardType) {
+  // Helper function to capitalize first letter of text
+  const capitalizeText = (text) => {
+    if (!text || typeof text !== "string") return text;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
+
   // Helper function to safely handle content that might be string or array
   const normalizeContent = (content) => {
     if (!content) return [];
-    if (Array.isArray(content)) return content;
-    if (typeof content === "string") return [content];
+    if (Array.isArray(content)) {
+      return content.map((item) => capitalizeText(item));
+    }
+    if (typeof content === "string") {
+      return [capitalizeText(content)];
+    }
     return [];
   };
 
@@ -953,6 +963,12 @@ function openDiagnosisModal(diagnosis) {
 
 // Generate modal sections HTML
 function generateModalSections(diagnosis) {
+  // Helper function to capitalize first letter of text
+  const capitalizeText = (text) => {
+    if (!text || typeof text !== "string") return text;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
+
   // Helper function to get field content with multiple possible field names
   const getFieldContent = (fieldNames) => {
     for (const fieldName of fieldNames) {
@@ -966,8 +982,12 @@ function generateModalSections(diagnosis) {
   // Helper function to normalize content (string or array)
   const normalizeContent = (content) => {
     if (!content) return [];
-    if (Array.isArray(content)) return content;
-    if (typeof content === "string") return [content];
+    if (Array.isArray(content)) {
+      return content.map((item) => capitalizeText(item));
+    }
+    if (typeof content === "string") {
+      return [capitalizeText(content)];
+    }
     return [];
   };
 
