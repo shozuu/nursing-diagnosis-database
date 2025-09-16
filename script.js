@@ -64,38 +64,27 @@ async function loadData() {
 }
 
 // Search functionality
-// Add debugging logs to performSearch
 function performSearch(query = "") {
   console.log("Search query:", query);
 
-  if (!query.trim()) {
-    // Clear the search metadata for all diagnoses
-    diagnosesData.forEach((diagnosis) => {
-      delete diagnosis._searchMeta;
-    });
-    filteredData = applyFilter(diagnosesData, currentFilter);
-    console.log("Filtered data after clearing search:", filteredData);
+  // Always apply the current filter first
+  let dataToSearch = applyFilter(diagnosesData, currentFilter);
 
-    // Clear any stored search metadata
-    filteredData.forEach((diagnosis) => {
+  if (!query.trim()) {
+    // No search: show all diagnoses for the current filter
+    dataToSearch.forEach((diagnosis) => {
       delete diagnosis._searchMeta;
     });
+    filteredData = [...dataToSearch];
   } else {
     const searchTerms = query
       .toLowerCase()
       .split(" ")
       .filter((term) => term.length > 0);
 
-    console.log("Search terms:", searchTerms);
-
-    // First apply any active filters to get the base dataset
-    let baseData = applyFilter(diagnosesData, currentFilter);
-    console.log("Base data after applying filter:", baseData);
-
-    // Search across all fields and calculate relevance scores
     let matchedResults = [];
 
-    baseData.forEach((diagnosis) => {
+    dataToSearch.forEach((diagnosis) => {
       const searchResult = searchInDiagnosisTitle(
         diagnosis,
         searchTerms,
@@ -111,14 +100,9 @@ function performSearch(query = "") {
       }
     });
 
-    console.log("Matched results:", matchedResults);
-
-    // Sort by relevance score (higher scores first)
     matchedResults.sort((a, b) => b.score - a.score);
 
-    // Extract diagnosis objects and store search metadata
     filteredData = matchedResults.map((result) => {
-      // Store search metadata for highlighting and display purposes
       result.diagnosis._searchMeta = {
         score: result.score,
         matchedFields: result.matchedFields,
@@ -127,14 +111,12 @@ function performSearch(query = "") {
       };
       return result.diagnosis;
     });
-
-    console.log("Filtered data after search:", filteredData);
   }
 
   currentPage = 1;
   updatePagination();
   displayCurrentPage();
-  updateResultsCount(filteredData.length, diagnosesData.length);
+  updateResultsCount(filteredData.length, dataToSearch.length);
 
   // Show/hide clear button
   clearBtn.style.display = query.trim() ? "block" : "none";
@@ -146,22 +128,11 @@ function searchInDiagnosisTitle(diagnosis, searchTerms, originalQuery) {
   let matchedFields = [];
   let found = false;
 
-  // Field weight for diagnosis title
-  const diagnosisWeight = 200;
-
   console.log(
     "Searching diagnosis:",
     diagnosis.diagnosis,
     "for terms:",
     searchTerms
-  );
-
-  // Search only in diagnosis title
-  const titleResult = searchInField(
-    diagnosis.diagnosis,
-    searchTerms,
-    originalQuery,
-    diagnosisWeight
   );
 
   console.log("Title result for", diagnosis.diagnosis, ":", titleResult);
@@ -190,152 +161,6 @@ function searchInDiagnosisTitle(diagnosis, searchTerms, originalQuery) {
   };
 }
 
-// Search within a specific field
-function searchInField(fieldText, searchTerms, originalQuery, weight) {
-  if (!fieldText || typeof fieldText !== "string")
-    return { found: false, score: 0 };
-
-  const text = fieldText.toLowerCase();
-  let score = 0;
-  let found = false;
-
-  console.log("Searching field text:", text, "for terms:", searchTerms);
-
-  // Check if all search terms are present
-  const allTermsFound = searchTerms.every((term) => text.includes(term));
-
-  console.log("All terms found:", allTermsFound);
-
-  if (!allTermsFound) {
-    return { found: false, score: 0 };
-  }
-
-  found = true;
-
-  // Exact phrase match (highest score)
-  if (text.includes(originalQuery)) {
-    score += weight * 2;
-  }
-
-  // Exact match bonus
-  if (text === originalQuery) {
-    score += weight * 3;
-  }
-
-  // Starts with query bonus
-  if (text.startsWith(originalQuery)) {
-    score += weight * 1.5;
-  }
-
-  console.log("Field search result:", { found, score });
-
-  return { found, score };
-}
-
-// Calculate relevance score for search results (legacy function, now used by searchInField)
-function calculateRelevanceScore(title, searchTerms, originalQuery) {
-  let score = 0;
-
-  // Bonus for exact match of the entire query
-  if (title === originalQuery) {
-    score += 1000;
-  }
-
-  // Bonus for exact match as a phrase
-  if (title.includes(originalQuery)) {
-    score += 500;
-  }
-
-  // Bonus for title starting with the search query
-  if (title.startsWith(originalQuery)) {
-    score += 300;
-  }
-
-  // Score based on individual term matches
-  searchTerms.forEach((term) => {
-    // Exact word match (word boundaries)
-    const wordRegex = new RegExp(`\\b${escapeRegExp(term)}\\b`, "g");
-    const wordMatches = (title.match(wordRegex) || []).length;
-    score += wordMatches * 100;
-
-    // Bonus if term appears at the beginning of the title
-    if (title.startsWith(term)) {
-      score += 50;
-    }
-
-    // Bonus for shorter titles (more specific matches)
-    if (wordMatches > 0) {
-      score += Math.max(0, 50 - title.length);
-    }
-  });
-
-  // Penalty for longer titles (less specific)
-  score -= title.length * 0.5;
-
-  return score;
-}
-
-// Apply filter based on diagnosis type
-function applyFilter(data, filter) {
-  switch (filter) {
-    case "risk":
-      return data.filter((d) =>
-        d.diagnosis.toLowerCase().startsWith("risk for")
-      );
-    case "actual":
-      return data.filter(
-        (d) =>
-          !d.diagnosis.toLowerCase().startsWith("risk for") &&
-          !d.diagnosis.toLowerCase().startsWith("readiness for enhanced")
-      );
-    case "readiness":
-      return data.filter((d) =>
-        d.diagnosis.toLowerCase().startsWith("readiness for enhanced")
-      );
-    default:
-      return data;
-  }
-}
-
-// Highlight search terms in text
-// Update the highlightSearchTerms function to handle non-string values
-function highlightSearchTerms(text, query) {
-  if (!query.trim()) return text;
-
-  const searchTerms = query
-    .toLowerCase()
-    .split(" ")
-    .filter((term) => term.length > 1); // Ignore single characters
-
-  if (searchTerms.length === 0) return text;
-
-  // Sort terms by length (longest first) to avoid partial matches
-  searchTerms.sort((a, b) => b.length - a.length);
-
-  let result = typeof text === "string" ? text : ""; // Ensure result is a string
-
-  // Process each search term
-  searchTerms.forEach((term) => {
-    // Split text by existing highlight tags to avoid nested highlighting
-    const parts = result.split(/(<span class="highlight">.*?<\/span>)/gi);
-
-    result = parts
-      .map((part) => {
-        // Don't process parts that are already highlighted
-        if (part.toLowerCase().includes('<span class="highlight">')) {
-          return part;
-        }
-
-        // Apply highlighting to non-highlighted parts
-        const regex = new RegExp(`\b(${escapeRegExp(term)})\b`, "gi");
-        return part.replace(regex, '<span class="highlight">$1</span>');
-      })
-      .join("");
-  });
-
-  return result;
-}
-
 // Escape special characters for regex
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -345,7 +170,7 @@ function escapeRegExp(string) {
 function createDiagnosisCard(diagnosis) {
   // Determine card type for styling
   const getCardType = (diagnosisName) => {
-    const name = diagnosisName.toLowerCase();
+    const name = diagnosis.diagnosis.toLowerCase();
     if (name.startsWith("risk for")) return "risk";
     if (name.startsWith("readiness for enhanced")) return "readiness";
     return "actual";
@@ -357,7 +182,6 @@ function createDiagnosisCard(diagnosis) {
   const createSection = (title, content) => {
     if (!content || content.length === 0) return "";
     const text = Array.isArray(content) ? content.join(", ") : content;
-
     return `
       <div class="section">
         <div class="section-title">${title}</div>
@@ -372,17 +196,18 @@ function createDiagnosisCard(diagnosis) {
         <span class="diagnosis-text">${diagnosis.diagnosis}</span>
       </div>
       <div class="diagnosis-content">
-        ${createSection("Characteristics", diagnosis.characteristics)}
+        ${createSection("Characteristics", diagnosis.definingCharacteristics)}
         ${createSection("Related Factors", diagnosis.relatedFactors)}
+        ${createSection("Risk Factors", diagnosis.riskFactors)}
         ${createSection(
           "Associated Conditions",
           diagnosis.associatedConditions
         )}
         ${createSection("At Risk Population", diagnosis.atRiskPopulation)}
-        ${createSection("Suggested Outcomes", diagnosis.suggestedOutcomes)}
+        ${createSection("Suggested Outcomes", diagnosis.suggestedNOCOutcomes)}
         ${createSection(
           "Suggested Interventions",
-          diagnosis.suggestedInterventions
+          diagnosis.suggestedNICInterventions
         )}
       </div>
     </div>
@@ -554,10 +379,6 @@ function displayCurrentPage() {
     filteredData.length,
     "items"
   );
-  console.log(
-    "First few diagnoses:",
-    filteredData.slice(0, 5).map((d) => d.diagnosis)
-  );
 
   if (filteredData.length === 0) {
     noResults.style.display = "block";
@@ -582,17 +403,17 @@ function displayCurrentPage() {
   const endIndex = Math.min(startIndex + itemsPerPage, sortedData.length);
   const currentPageData = sortedData.slice(startIndex, endIndex);
 
+  // Log only the diagnoses that are displayed on the current page
+  console.log(
+    "First few diagnoses:",
+    currentPageData.map((d) => d.diagnosis)
+  );
+
   // Add loading state
   resultsContainer.style.opacity = "0.7";
   resultsContainer.style.transition = "opacity 0.3s ease";
 
   currentPageData.forEach((diagnosis, index) => {
-    console.log(
-      `Creating card ${index + 1}:`,
-      diagnosis.diagnosis,
-      "has searchMeta:",
-      !!diagnosis._searchMeta
-    );
     setTimeout(() => {
       // Create a temporary container to parse the HTML
       const tempDiv = document.createElement("div");
