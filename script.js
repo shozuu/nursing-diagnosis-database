@@ -1060,9 +1060,9 @@ function generateModalSections(diagnosis) {
             clientOutcomes.client_will || "Client Will"
           })</h3>
           <div class="modal-section-content">
-            <ul class="outcomes-list">
+            <ul class="modal-content-list">
               ${clientOutcomes.outcomes
-                .map((outcome) => `<li class="outcome-item">${outcome}</li>`)
+                .map((outcome) => `<li>${outcome}</li>`)
                 .join("")}
             </ul>
           </div>
