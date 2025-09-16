@@ -16,16 +16,16 @@ body {
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 16px;
   min-height: calc(100vh - 60px);
 }
 
 /* Header Styles */
 .header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 32px;
   color: #09090b;
-  padding: 32px 0;
+  padding: 24px 0;
   border-bottom: 1px solid #e4e4e7;
 }
 
@@ -52,11 +52,11 @@ body {
   background: #ffffff;
   border: 1px solid #e4e4e7;
   border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 32px;
+  padding: 16px;
+  margin-bottom: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: sticky;
-  top: 20px;
+  top: 10px;
   z-index: 100;
   transition: box-shadow 0.2s ease;
 }
@@ -157,9 +157,9 @@ body {
 /* Results Container */
 .results-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 /* Diagnosis Card */
@@ -167,14 +167,14 @@ body {
   background: #fafaf9;
   border: 1px solid #e7e5e4;
   border-radius: 8px;
-  padding: 24px;
-  padding-bottom: 50px; /* Add extra bottom padding for click indicator */
+  padding: 16px;
+  padding-bottom: 40px; /* Add extra bottom padding for click indicator */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  min-height: 280px;
+  min-height: 240px;
   display: flex;
   flex-direction: column;
 }
@@ -303,12 +303,12 @@ body {
 
 .definition {
   color: #57534e;
-  margin-bottom: 20px;
-  font-size: 0.875rem;
-  line-height: 1.4;
+  margin-bottom: 16px;
+  font-size: 0.825rem;
+  line-height: 1.3;
   background: #f5f5f4;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 6px;
   border-left: 3px solid #78716c;
   font-style: italic;
   word-break: break-word;
@@ -334,18 +334,18 @@ body {
 }
 
 .section {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .section:last-child {
-  margin-bottom: 40px; /* Ensure enough space for "Click for details..." text */
+  margin-bottom: 32px; /* Ensure enough space for "Click for details..." text */
 }
 
 .section-title {
   font-weight: 600;
   color: #78716c;
-  margin-bottom: 6px;
-  font-size: 0.75rem;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.9;
@@ -356,7 +356,7 @@ body {
 .section-content {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .section-content-text {
@@ -421,13 +421,13 @@ body {
 
 .definition-text {
   background: #f5f5f4;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 6px;
   border-left: 3px solid #78716c;
   font-style: italic;
   color: #57534e;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: 0.775rem;
+  line-height: 1.3;
   word-wrap: break-word;
 }
 
@@ -521,31 +521,40 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {
-    padding: 15px;
+    padding: 12px;
+  }
+
+  .header {
+    margin-bottom: 24px;
+    padding: 16px 0;
   }
 
   .header h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
   }
 
   .search-section {
-    padding: 20px;
+    padding: 14px;
+    margin-bottom: 20px;
+    top: 5px;
   }
 
   .results-container {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 14px;
+    margin-bottom: 20px;
   }
 
   .diagnosis-card {
-    padding: 20px;
-    padding-bottom: 45px; /* Maintain bottom padding on mobile */
-    min-height: auto;
+    padding: 14px;
+    padding-bottom: 36px; /* Maintain bottom padding on mobile */
+    min-height: 200px;
   }
 
   .filters {
-    gap: 8px;
+    gap: 6px;
+    margin-bottom: 20px;
   }
 
   .filter-btn {
@@ -578,23 +587,71 @@ body {
 }
 
 @media (max-width: 480px) {
+  .container {
+    padding: 10px;
+  }
+
+  .header {
+    margin-bottom: 20px;
+    padding: 12px 0;
+  }
+
   .header h1 {
-    font-size: 1.7rem;
+    font-size: 1.5rem;
     font-weight: 700;
   }
 
+  .search-section {
+    padding: 12px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
+
   .search-container {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   #searchInput {
-    padding: 12px 15px 12px 45px;
-    font-size: 1rem;
+    padding: 10px 12px 10px 40px;
+    font-size: 0.875rem;
   }
 
   .search-icon {
-    left: 15px;
-    font-size: 1rem;
+    left: 12px;
+    font-size: 0.875rem;
+  }
+
+  .results-container {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .diagnosis-card {
+    padding: 12px;
+    padding-bottom: 32px;
+    min-height: 180px;
+  }
+
+  .diagnosis-title {
+    margin-bottom: 10px;
+  }
+
+  .section {
+    margin-bottom: 10px;
+  }
+
+  .section:last-child {
+    margin-bottom: 24px;
+  }
+
+  .filters {
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  .filter-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
   }
 }
 
@@ -1112,10 +1169,10 @@ body {
 /* Extra small screens - compact mobile design */
 @media (max-width: 480px) {
   .pagination-container {
-    gap: 16px;
-    margin: 20px 12px;
-    padding: 16px 12px;
-    border-radius: 10px;
+    gap: 12px;
+    margin: 16px 8px;
+    padding: 12px 8px;
+    border-radius: 8px;
   }
 
   .pagination-controls-top {
@@ -1123,22 +1180,22 @@ body {
   }
 
   .items-per-page {
-    padding: 10px 12px;
-    gap: 8px;
-    font-size: 0.8rem;
+    padding: 8px 10px;
+    gap: 6px;
+    font-size: 0.75rem;
     border-radius: 6px;
   }
 
   .items-per-page label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
 
   #itemsPerPage {
-    height: 30px;
-    padding: 6px 8px;
-    font-size: 0.8rem;
-    min-width: 50px;
-    border-radius: 5px;
+    height: 28px;
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    min-width: 45px;
+    border-radius: 4px;
   }
 
   .pagination-nav {
@@ -1539,7 +1596,7 @@ body {
   border-radius: 12px;
   max-width: 800px;
   max-height: 90vh;
-  width: 90%;
+  width: 92%;
   overflow: hidden;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
     0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -1992,88 +2049,111 @@ body {
     padding: 16px;
   }
 
+  .modal-content {
+    width: 95%;
+    max-height: 85vh;
+    border-radius: 8px;
+  }
+
+  .modal-header {
+    padding: 12px 16px;
+  }
+
   .modal-title {
-    font-size: 1.125rem;
-    line-height: 1.3;
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
   }
 
   .modal-body {
-    padding: 16px;
+    padding: 12px 16px;
   }
 
   .modal-page-number {
-    font-size: 0.75rem;
-    padding: 4px 8px;
+    font-size: 0.7rem;
+    padding: 3px 6px;
   }
 
   .modal-definition {
-    font-size: 0.8rem;
-    margin-bottom: 16px;
+    font-size: 0.75rem;
+    margin-bottom: 12px;
+    padding: 8px;
   }
 
   .modal-section {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
   .modal-section-title {
-    font-size: 0.875rem;
-    margin-bottom: 8px;
+    font-size: 0.8rem;
+    margin-bottom: 6px;
   }
 
   .modal-section-content {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
 }
 
 /* Mobile phones (480px and below) */
 @media (max-width: 480px) {
   .container {
-    padding: 12px;
+    padding: 8px;
   }
 
   /* Header */
   .header {
-    margin-bottom: 24px;
-    padding: 16px 0;
+    margin-bottom: 16px;
+    padding: 12px 0;
   }
 
   .header h1 {
-    font-size: 1.5rem;
-    margin-bottom: 4px;
+    font-size: 1.4rem;
+    margin-bottom: 2px;
   }
 
   .header i {
-    margin-right: 6px;
+    margin-right: 4px;
   }
 
   .subtitle {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
 
   /* Project intro */
   .project-intro {
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
 
   .intro-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
   }
 
   .intro-text {
-    font-size: 0.75rem;
-    line-height: 1.4;
+    font-size: 0.7rem;
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+
+  .intro-text:last-child {
+    margin-bottom: 0;
   }
 
   .standout-link {
-    padding: 1px 4px;
-    font-size: 0.75rem;
-    border-radius: 3px;
+    padding: 1px 3px;
+    font-size: 0.7rem;
+    border-radius: 2px;
   }
 
   /* Search */
   .search-section {
-    padding: 16px;
+    padding: 12px;
     margin-bottom: 20px;
   }
 
@@ -2261,6 +2341,60 @@ body {
 
 /* Extra small mobile screens */
 @media (max-width: 375px) {
+  .container {
+    padding: 6px;
+  }
+
+  .header {
+    margin-bottom: 12px;
+    padding: 8px 0;
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+  }
+
+  .project-intro {
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .search-section {
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+
+  .results-container {
+    gap: 10px;
+  }
+
+  .diagnosis-card {
+    padding: 10px;
+    padding-bottom: 28px;
+    min-height: 160px;
+  }
+
+  .diagnosis-title {
+    margin-bottom: 8px;
+  }
+
+  .section {
+    margin-bottom: 8px;
+  }
+
+  .section:last-child {
+    margin-bottom: 20px;
+  }
+
+  .filters {
+    margin-bottom: 12px;
+  }
+
+  .pagination-container {
+    margin: 12px 6px;
+    padding: 8px 6px;
+  }
+
   .modal-content {
     width: calc(
       100% - 24px
