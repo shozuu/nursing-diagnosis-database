@@ -70,13 +70,16 @@ function performSearch(query = "") {
   // Always apply the current filter first
   let dataToSearch = applyFilter(diagnosesData, currentFilter);
 
+  // Clear any previous search metadata
+  dataToSearch.forEach((diagnosis) => {
+    delete diagnosis._searchMeta;
+  });
+
   if (!query.trim()) {
-    // No search: show all diagnoses for the current filter
-    dataToSearch.forEach((diagnosis) => {
-      delete diagnosis._searchMeta;
-    });
+    // Empty search: show all diagnoses for the current filter
     filteredData = [...dataToSearch];
   } else {
+    // Non-empty search: filter results
     const searchTerms = query
       .toLowerCase()
       .split(" ")
@@ -100,8 +103,10 @@ function performSearch(query = "") {
       }
     });
 
+    // Sort by relevance (score)
     matchedResults.sort((a, b) => b.score - a.score);
 
+    // Create filtered data with search metadata
     filteredData = matchedResults.map((result) => {
       result.diagnosis._searchMeta = {
         score: result.score,
@@ -113,6 +118,7 @@ function performSearch(query = "") {
     });
   }
 
+  // Reset to first page and update display
   currentPage = 1;
   updatePagination();
   displayCurrentPage();
@@ -135,6 +141,12 @@ function searchInDiagnosisTitle(diagnosis, searchTerms, originalQuery) {
     searchTerms
   );
 
+  // Search in the diagnosis title
+  const titleResult = searchInField(
+    diagnosis.diagnosis,
+    searchTerms,
+    originalQuery
+  );
   console.log("Title result for", diagnosis.diagnosis, ":", titleResult);
 
   if (titleResult.found) {
@@ -166,7 +178,70 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Create diagnosis card HTML
+// Search within a specific field
+function searchInField(fieldContent, searchTerms, originalQuery) {
+  if (!fieldContent) {
+    return { found: false, score: 0 };
+  }
+
+  const fieldLower = fieldContent.toLowerCase();
+  let score = 0;
+  let termMatches = 0;
+
+  // Check for exact phrase match
+  if (fieldLower.includes(originalQuery)) {
+    score += 1000; // High score for exact phrase
+    return { found: true, score };
+  }
+
+  // Check individual terms
+  searchTerms.forEach((term) => {
+    if (fieldLower.includes(term)) {
+      termMatches++;
+      score += 100; // Base score per term
+
+      // Bonus for word boundary matches
+      const wordBoundaryRegex = new RegExp(`\\b${escapeRegExp(term)}\\b`, "i");
+      if (wordBoundaryRegex.test(fieldContent)) {
+        score += 50;
+      }
+
+      // Bonus for position (earlier = better)
+      const position = fieldLower.indexOf(term);
+      const positionBonus = Math.max(0, 50 - position);
+      score += positionBonus;
+    }
+  });
+
+  const found = termMatches > 0;
+  return { found, score };
+}
+
+// Apply filter to data
+function applyFilter(data, filter) {
+  if (filter === "all") {
+    return data;
+  }
+
+  return data.filter((diagnosis) => {
+    const diagnosisLower = diagnosis.diagnosis.toLowerCase();
+    switch (filter) {
+      case "risk":
+        return diagnosisLower.startsWith("risk for");
+      case "readiness":
+        return diagnosisLower.startsWith("readiness for enhanced");
+      case "actual":
+        return (
+          !diagnosisLower.startsWith("risk for") &&
+          !diagnosisLower.startsWith("readiness for enhanced")
+        );
+      default:
+        return true;
+    }
+  });
+}
+
+// Create diagnosis card HTML and handle interactions
 function createDiagnosisCard(diagnosis) {
   // Determine card type for styling
   const getCardType = (diagnosisName) => {
@@ -178,6 +253,21 @@ function createDiagnosisCard(diagnosis) {
 
   const cardType = getCardType(diagnosis.diagnosis);
 
+  // Create card element
+  const cardElement = document.createElement("div");
+  cardElement.className = `diagnosis-card diagnosis-card--${cardType}`;
+
+  // Generate card HTML
+  cardElement.innerHTML = generateCardHTML(diagnosis, cardType);
+
+  // Add click event listener for modal
+  addCardEventListeners(cardElement, diagnosis);
+
+  return cardElement;
+}
+
+// Generate the HTML content for a card
+function generateCardHTML(diagnosis, cardType) {
   // Helper function to create sections for card content
   const createSection = (title, content) => {
     if (!content || content.length === 0) return "";
@@ -191,27 +281,52 @@ function createDiagnosisCard(diagnosis) {
   };
 
   return `
-    <div class="diagnosis-card diagnosis-card--${cardType}">
-      <div class="diagnosis-title">
-        <span class="diagnosis-text">${diagnosis.diagnosis}</span>
-      </div>
-      <div class="diagnosis-content">
-        ${createSection("Characteristics", diagnosis.definingCharacteristics)}
-        ${createSection("Related Factors", diagnosis.relatedFactors)}
-        ${createSection("Risk Factors", diagnosis.riskFactors)}
-        ${createSection(
-          "Associated Conditions",
-          diagnosis.associatedConditions
-        )}
-        ${createSection("At Risk Population", diagnosis.atRiskPopulation)}
-        ${createSection("Suggested Outcomes", diagnosis.suggestedNOCOutcomes)}
-        ${createSection(
-          "Suggested Interventions",
-          diagnosis.suggestedNICInterventions
-        )}
-      </div>
+    <div class="diagnosis-title">
+      <span class="diagnosis-text">${diagnosis.diagnosis}</span>
+    </div>
+    <div class="diagnosis-content">
+      ${createSection("Characteristics", diagnosis.definingCharacteristics)}
+      ${createSection("Related Factors", diagnosis.relatedFactors)}
+      ${createSection("Risk Factors", diagnosis.riskFactors)}
+      ${createSection("Associated Conditions", diagnosis.associatedConditions)}
+      ${createSection("At Risk Population", diagnosis.atRiskPopulation)}
+      ${createSection("Suggested Outcomes", diagnosis.suggestedNOCOutcomes)}
+      ${createSection(
+        "Suggested Interventions",
+        diagnosis.suggestedNICInterventions
+      )}
     </div>
   `;
+}
+
+// Add event listeners to card element
+function addCardEventListeners(cardElement, diagnosis) {
+  cardElement.addEventListener("click", function (e) {
+    console.log("Card clicked!", diagnosis);
+    // Don't open modal if clicking on specific interactive elements
+    if (e.target.closest(".page-number")) {
+      console.log("Interactive element clicked, modal not opened.");
+      return;
+    }
+
+    openDiagnosisModal(diagnosis);
+  });
+
+  // Add hover effects and accessibility
+  cardElement.setAttribute("tabindex", "0");
+  cardElement.setAttribute("role", "button");
+  cardElement.setAttribute(
+    "aria-label",
+    `View details for ${diagnosis.diagnosis}`
+  );
+
+  // Keyboard support
+  cardElement.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDiagnosisModal(diagnosis);
+    }
+  });
 }
 
 // Update pagination info
@@ -415,27 +530,13 @@ function displayCurrentPage() {
 
   currentPageData.forEach((diagnosis, index) => {
     setTimeout(() => {
-      // Create a temporary container to parse the HTML
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = createDiagnosisCard(diagnosis);
-      const cardElement = tempDiv.firstElementChild;
+      // Create card element with integrated event handling
+      const cardElement = createDiagnosisCard(diagnosis);
 
       // Add initial animation state
       cardElement.style.opacity = "0";
       cardElement.style.transform = "translateY(20px)";
       cardElement.style.transition = "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
-
-      // Add click event listener to open modal
-      cardElement.addEventListener("click", function (e) {
-        console.log("Card clicked!", diagnosis);
-        // Don't open modal if clicking on specific interactive elements
-        if (e.target.closest(".page-number")) {
-          console.log("Interactive element clicked, modal not opened.");
-          return;
-        }
-
-        openModal(diagnosis);
-      });
 
       resultsContainer.appendChild(cardElement);
 
@@ -528,188 +629,6 @@ function generateSearchInsights(results) {
   return insights;
 }
 
-// Event Listeners
-searchInput.addEventListener("input", (e) => {
-  performSearch(e.target.value);
-});
-
-searchInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    performSearch(e.target.value);
-  }
-});
-
-clearBtn.addEventListener("click", () => {
-  searchInput.value = "";
-  clearBtn.style.display = "none";
-  performSearch("");
-  searchInput.focus();
-});
-
-// Filter buttons
-filterBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    // Remove active class from all buttons
-    filterBtns.forEach((b) => b.classList.remove("active"));
-    // Add active class to clicked button
-    btn.classList.add("active");
-
-    // Update current filter
-    currentFilter = btn.dataset.filter;
-
-    // Reset to first page when changing filters
-    currentPage = 1;
-
-    // Apply filter and search
-    performSearch(searchInput.value);
-  });
-});
-
-// Keyboard shortcuts
-document.addEventListener("keydown", (e) => {
-  // Focus search on Ctrl+F or Cmd+F
-  if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-    e.preventDefault();
-    searchInput.focus();
-    searchInput.select();
-  }
-
-  // Clear search on Escape
-  if (e.key === "Escape" && document.activeElement === searchInput) {
-    clearBtn.click();
-  }
-});
-
-// Pagination event listeners
-itemsPerPageSelect.addEventListener("change", (e) => {
-  itemsPerPage = parseInt(e.target.value);
-  currentPage = 1;
-  updatePagination();
-  displayCurrentPage();
-});
-
-prevPageBtn.addEventListener("click", () => {
-  if (currentPage > 1) {
-    currentPage--;
-    updatePagination();
-    displayCurrentPage();
-    // Add smooth scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-});
-
-nextPageBtn.addEventListener("click", () => {
-  if (currentPage < totalPages) {
-    currentPage++;
-    updatePagination();
-    displayCurrentPage();
-    // Add smooth scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-});
-
-// Jump to page functionality
-function jumpToPage() {
-  const targetPage = parseInt(jumpToPageInput.value);
-  if (
-    targetPage >= 1 &&
-    targetPage <= totalPages &&
-    targetPage !== currentPage
-  ) {
-    currentPage = targetPage;
-    updatePagination();
-    displayCurrentPage();
-    // Add smooth scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  } else {
-    // Reset input to current page if invalid
-    jumpToPageInput.value = currentPage;
-  }
-}
-
-jumpToPageBtn.addEventListener("click", jumpToPage);
-
-jumpToPageInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") {
-    jumpToPage();
-  }
-});
-
-jumpToPageInput.addEventListener("input", (e) => {
-  const value = parseInt(e.target.value);
-  if (value < 1) {
-    e.target.value = 1;
-  } else if (value > totalPages) {
-    e.target.value = totalPages;
-  }
-});
-
-jumpToPageInput.addEventListener("blur", (e) => {
-  // Reset to current page if empty or invalid
-  if (
-    !e.target.value ||
-    parseInt(e.target.value) < 1 ||
-    parseInt(e.target.value) > totalPages
-  ) {
-    e.target.value = currentPage;
-  }
-});
-
-// Keyboard navigation for pagination
-document.addEventListener("keydown", (e) => {
-  // Only handle pagination keys if search input is not focused
-  if (document.activeElement !== searchInput) {
-    if (e.key === "ArrowLeft" && currentPage > 1) {
-      e.preventDefault();
-      currentPage--;
-      updatePagination();
-      displayCurrentPage();
-    } else if (e.key === "ArrowRight" && currentPage < totalPages) {
-      e.preventDefault();
-      currentPage++;
-      updatePagination();
-      displayCurrentPage();
-    }
-  }
-});
-
-// Initialize the app
-document.addEventListener("DOMContentLoaded", () => {
-  // Initialize modal elements
-  modal = document.getElementById("diagnosisModal");
-  modalTitle = document.getElementById("modalTitle");
-  modalPageNumber = document.getElementById("modalPageNumber");
-  modalDefinition = document.getElementById("modalDefinition");
-  modalSections = document.getElementById("modalSections");
-  modalClose = document.getElementById("modalClose");
-
-  console.log("Modal elements initialized:", {
-    modal,
-    modalTitle,
-    modalPageNumber,
-    modalDefinition,
-    modalSections,
-    modalClose,
-  });
-
-  // Add modal event listeners
-  if (modalClose) {
-    modalClose.addEventListener("click", closeModal);
-  }
-
-  if (modal) {
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) {
-        closeModal();
-      }
-    });
-  }
-
-  loadData();
-  searchInput.focus();
-});
-
 // Add some utility functions for better UX
 function debounce(func, wait) {
   let timeout;
@@ -723,19 +642,161 @@ function debounce(func, wait) {
   };
 }
 
-// Use debounced search for better performance
+// Create debounced search for better performance
 const debouncedSearch = debounce((query) => {
   performSearch(query);
 }, 300);
 
-// Replace the immediate search with debounced version for input events
-searchInput.removeEventListener("input", (e) => {
-  performSearch(e.target.value);
-});
+// Centralized search event listener setup
+function setupSearchListeners() {
+  // Input event with debounce for better performance
+  searchInput.addEventListener("input", (e) => {
+    debouncedSearch(e.target.value);
+  });
 
-searchInput.addEventListener("input", (e) => {
-  debouncedSearch(e.target.value);
-});
+  // Enter key for immediate search
+  searchInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      performSearch(e.target.value);
+    }
+  });
+
+  // Clear button functionality
+  clearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    clearBtn.style.display = "none";
+    performSearch("");
+    searchInput.focus();
+  });
+}
+
+// Setup filter button listeners
+function setupFilterListeners() {
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // Remove active class from all buttons
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      // Add active class to clicked button
+      btn.classList.add("active");
+
+      // Update current filter
+      currentFilter = btn.dataset.filter;
+
+      // Reset to first page when changing filters
+      currentPage = 1;
+
+      // Apply filter and search
+      performSearch(searchInput.value);
+    });
+  });
+}
+
+// Setup pagination event listeners
+function setupPaginationListeners() {
+  itemsPerPageSelect.addEventListener("change", (e) => {
+    itemsPerPage = parseInt(e.target.value);
+    currentPage = 1;
+    updatePagination();
+    displayCurrentPage();
+  });
+
+  prevPageBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      updatePagination();
+      displayCurrentPage();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+
+  nextPageBtn.addEventListener("click", () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      updatePagination();
+      displayCurrentPage();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+
+  jumpToPageBtn.addEventListener("click", jumpToPage);
+
+  jumpToPageInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      jumpToPage();
+    }
+  });
+
+  jumpToPageInput.addEventListener("input", (e) => {
+    const value = parseInt(e.target.value);
+    if (value < 1) {
+      e.target.value = 1;
+    } else if (value > totalPages) {
+      e.target.value = totalPages;
+    }
+  });
+
+  jumpToPageInput.addEventListener("blur", (e) => {
+    // Reset to current page if empty or invalid
+    if (
+      !e.target.value ||
+      parseInt(e.target.value) < 1 ||
+      parseInt(e.target.value) > totalPages
+    ) {
+      e.target.value = currentPage;
+    }
+  });
+}
+
+// Jump to page functionality
+function jumpToPage() {
+  const targetPage = parseInt(jumpToPageInput.value);
+  if (
+    targetPage >= 1 &&
+    targetPage <= totalPages &&
+    targetPage !== currentPage
+  ) {
+    currentPage = targetPage;
+    updatePagination();
+    displayCurrentPage();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    // Reset input to current page if invalid
+    jumpToPageInput.value = currentPage;
+  }
+}
+
+// Setup keyboard shortcuts
+function setupKeyboardListeners() {
+  document.addEventListener("keydown", (e) => {
+    // Focus search on Ctrl+F or Cmd+F
+    if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    }
+
+    // Clear search on Escape
+    if (e.key === "Escape" && document.activeElement === searchInput) {
+      clearBtn.click();
+    }
+
+    // Pagination keyboard navigation
+    if (document.activeElement !== searchInput) {
+      if (e.key === "ArrowLeft" && currentPage > 1) {
+        e.preventDefault();
+        currentPage--;
+        updatePagination();
+        displayCurrentPage();
+      } else if (e.key === "ArrowRight" && currentPage < totalPages) {
+        e.preventDefault();
+        currentPage++;
+        updatePagination();
+        displayCurrentPage();
+      }
+    }
+  });
+}
 
 // Modal functionality - declare variables at top level
 let modal,
@@ -745,7 +806,8 @@ let modal,
   modalSections,
   modalClose;
 
-function openModal(diagnosis) {
+// Centralized modal opening function
+function openDiagnosisModal(diagnosis) {
   // Ensure modal elements are initialized
   if (
     !modal ||
@@ -758,7 +820,7 @@ function openModal(diagnosis) {
     return;
   }
 
-  // Populate modal content
+  // Populate basic modal content
   modalTitle.textContent = diagnosis.diagnosis;
   modalPageNumber.textContent = "Page " + diagnosis.pageNum;
   modalDefinition.textContent = diagnosis.definition;
@@ -766,6 +828,22 @@ function openModal(diagnosis) {
   // Clear and populate sections
   modalSections.innerHTML = "";
 
+  // Generate modal sections HTML
+  const sectionsHTML = generateModalSections(diagnosis);
+
+  if (sectionsHTML) {
+    modalSections.innerHTML = sectionsHTML;
+  } else {
+    modalSections.innerHTML =
+      "<div class='modal-section'>No additional information available.</div>";
+  }
+
+  // Show the modal
+  modal.classList.add("active");
+}
+
+// Generate modal sections HTML
+function generateModalSections(diagnosis) {
   // Helper function to create modal sections with proper formatting
   const createModalSection = (title, content) => {
     if (!content || content.length === 0) return "";
@@ -838,21 +916,36 @@ function openModal(diagnosis) {
     `;
   }
 
-  if (sectionsHTML) {
-    modalSections.innerHTML = sectionsHTML;
-  } else {
-    modalSections.innerHTML =
-      "<div class='modal-section'>No additional information available.</div>";
-  }
-
-  // Show the modal
-  modal.classList.add("active");
+  return sectionsHTML;
 }
 
+// Close modal function
 function closeModal() {
   if (modal) {
     modal.classList.remove("active");
   }
+}
+
+// Setup modal event listeners
+function setupModalListeners() {
+  if (modalClose) {
+    modalClose.addEventListener("click", closeModal);
+  }
+
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+  }
+
+  // Escape key to close modal
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && modal.classList.contains("active")) {
+      closeModal();
+    }
+  });
 }
 
 // Handle screen resize for responsive pagination
@@ -890,3 +983,34 @@ function requestScrollTick() {
 }
 
 window.addEventListener("scroll", requestScrollTick);
+
+// Initialize the app
+document.addEventListener("DOMContentLoaded", () => {
+  // Initialize modal elements
+  modal = document.getElementById("diagnosisModal");
+  modalTitle = document.getElementById("modalTitle");
+  modalPageNumber = document.getElementById("modalPageNumber");
+  modalDefinition = document.getElementById("modalDefinition");
+  modalSections = document.getElementById("modalSections");
+  modalClose = document.getElementById("modalClose");
+
+  console.log("Modal elements initialized:", {
+    modal,
+    modalTitle,
+    modalPageNumber,
+    modalDefinition,
+    modalSections,
+    modalClose,
+  });
+
+  // Setup all event listeners
+  setupSearchListeners();
+  setupFilterListeners();
+  setupPaginationListeners();
+  setupModalListeners();
+  setupKeyboardListeners();
+
+  // Load data and focus search
+  loadData();
+  searchInput.focus();
+});
