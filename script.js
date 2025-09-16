@@ -315,32 +315,32 @@ function generateCardHTML(diagnosis, cardType) {
   };
 
   // Get field content using all possible field name variations
-  const definingCharacteristics = getFieldContent(['defining_characteristics']);
-  const relatedFactors = getFieldContent(['related_factors']);
-  const riskFactors = getFieldContent(['risk_factors']);
-  const associatedConditions = getFieldContent(['associated_conditions']);
-  const atRiskPopulation = getFieldContent(['at-risk_population']);
-  
+  const definingCharacteristics = getFieldContent(["defining_characteristics"]);
+  const relatedFactors = getFieldContent(["related_factors"]);
+  const riskFactors = getFieldContent(["risk_factors"]);
+  const associatedConditions = getFieldContent(["associated_conditions"]);
+  const atRiskPopulation = getFieldContent(["at-risk_population"]);
+
   // Handle NOC outcomes variations
   const nocOutcomes = getFieldContent([
-    'suggested_noc_outcomes',
-    'suggested_noc_outcome',
-    'suggested_noc_outcomes_(visual)',
-    'suggested_noc_outcomes_and_example'
+    "suggested_noc_outcomes",
+    "suggested_noc_outcome",
+    "suggested_noc_outcomes_(visual)",
+    "suggested_noc_outcomes_and_example",
   ]);
-  
+
   // Handle NIC interventions variations
   const nicInterventions = getFieldContent([
-    'suggested_nic_interventions',
-    'suggested_nic_intervention',
-    'suggested_nursing_interventions'
+    "suggested_nic_interventions",
+    "suggested_nic_intervention",
+    "suggested_nursing_interventions",
   ]);
 
   // Handle client outcomes (can be object or array)
   const clientOutcomes = diagnosis.client_outcomes;
   let clientOutcomesContent = null;
   if (clientOutcomes) {
-    if (typeof clientOutcomes === 'object' && clientOutcomes.outcomes) {
+    if (typeof clientOutcomes === "object" && clientOutcomes.outcomes) {
       clientOutcomesContent = clientOutcomes.outcomes;
     } else {
       clientOutcomesContent = clientOutcomes;
@@ -349,14 +349,14 @@ function generateCardHTML(diagnosis, cardType) {
 
   // Handle references field variations (all the long field names)
   const referencesContent = getFieldContent([
-    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales_,_client/family_teaching,_and_references',
-    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
-    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references'
+    "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales_,_client/family_teaching,_and_references",
+    "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references",
+    "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references",
   ]);
 
   return `
@@ -379,15 +379,30 @@ function generateCardHTML(diagnosis, cardType) {
       `
           : ""
       }
-      ${createSection("Defining Characteristics", definingCharacteristics, { maxItems: 4 })}
+      ${createSection("Defining Characteristics", definingCharacteristics, {
+        maxItems: 4,
+      })}
       ${createSection("Related Factors", relatedFactors, { maxItems: 3 })}
       ${createSection("Risk Factors", riskFactors, { maxItems: 3 })}
-      ${createSection("Associated Conditions", associatedConditions, { maxItems: 2 })}
+      ${createSection("Associated Conditions", associatedConditions, {
+        maxItems: 2,
+      })}
       ${createSection("At Risk Population", atRiskPopulation, { maxItems: 2 })}
-      ${createSection("Client Outcomes", clientOutcomesContent, { maxItems: 2 })}
+      ${createSection("Client Outcomes", clientOutcomesContent, {
+        maxItems: 2,
+      })}
       ${createSection("Suggested NOC Outcomes", nocOutcomes, { maxItems: 2 })}
-      ${createSection("Suggested NIC Interventions", nicInterventions, { maxItems: 2 })}
-      ${referencesContent ? createSection("References", referencesContent, { maxItems: 1, showCount: false }) : ""}
+      ${createSection("Suggested NIC Interventions", nicInterventions, {
+        maxItems: 2,
+      })}
+      ${
+        referencesContent
+          ? createSection("References", referencesContent, {
+              maxItems: 1,
+              showCount: false,
+            })
+          : ""
+      }
     </div>
   `;
 }
@@ -915,7 +930,8 @@ function openDiagnosisModal(diagnosis) {
 
   // Populate basic modal content
   modalTitle.textContent = diagnosis.diagnosis;
-  modalPageNumber.textContent = "Page " + (diagnosis.page_num || diagnosis.pageNum || 'N/A');
+  modalPageNumber.textContent =
+    "Page " + (diagnosis.page_num || diagnosis.pageNum || "N/A");
   modalDefinition.textContent = diagnosis.definition;
 
   // Clear and populate sections
@@ -959,12 +975,15 @@ function generateModalSections(diagnosis) {
   const createModalSection = (title, content) => {
     const normalizedContent = normalizeContent(content);
     if (normalizedContent.length === 0) return "";
-    
+
     // For modal, show all content (no truncation)
-    const contentHTML = normalizedContent.length === 1 
-      ? normalizedContent[0]
-      : `<ul class="modal-content-list">${normalizedContent.map(item => `<li>${item}</li>`).join('')}</ul>`;
-    
+    const contentHTML =
+      normalizedContent.length === 1
+        ? normalizedContent[0]
+        : `<ul class="modal-content-list">${normalizedContent
+            .map((item) => `<li>${item}</li>`)
+            .join("")}</ul>`;
+
     return `
       <div class="modal-section">
         <h3 class="modal-section-title">${title}</h3>
@@ -976,25 +995,25 @@ function generateModalSections(diagnosis) {
   };
 
   // Get field content using all possible field name variations
-  const definingCharacteristics = getFieldContent(['defining_characteristics']);
-  const relatedFactors = getFieldContent(['related_factors']);
-  const riskFactors = getFieldContent(['risk_factors']);
-  const associatedConditions = getFieldContent(['associated_conditions']);
-  const atRiskPopulation = getFieldContent(['at-risk_population']);
-  
+  const definingCharacteristics = getFieldContent(["defining_characteristics"]);
+  const relatedFactors = getFieldContent(["related_factors"]);
+  const riskFactors = getFieldContent(["risk_factors"]);
+  const associatedConditions = getFieldContent(["associated_conditions"]);
+  const atRiskPopulation = getFieldContent(["at-risk_population"]);
+
   // Handle NOC outcomes variations
   const nocOutcomes = getFieldContent([
-    'suggested_noc_outcomes',
-    'suggested_noc_outcome',
-    'suggested_noc_outcomes_(visual)',
-    'suggested_noc_outcomes_and_example'
+    "suggested_noc_outcomes",
+    "suggested_noc_outcome",
+    "suggested_noc_outcomes_(visual)",
+    "suggested_noc_outcomes_and_example",
   ]);
-  
+
   // Handle NIC interventions variations
   const nicInterventions = getFieldContent([
-    'suggested_nic_interventions',
-    'suggested_nic_intervention',
-    'suggested_nursing_interventions'
+    "suggested_nic_interventions",
+    "suggested_nic_intervention",
+    "suggested_nursing_interventions",
   ]);
 
   // Handle client outcomes (can be object or array)
@@ -1002,36 +1021,49 @@ function generateModalSections(diagnosis) {
 
   // Handle references field variations (all the long field names)
   const referencesContent = getFieldContent([
-    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning_and_references',
-    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales_,_client/family_teaching,_and_references',
-    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
-    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references'
+    "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning_and_references",
+    "nic,_noc,_client_outcomes,_nursing_interventions_and_rationales_,_client/family_teaching,_and_references",
+    "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references",
+    "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references",
   ]);
 
   // Build sections using comprehensive field handling
   let sectionsHTML = "";
 
-  sectionsHTML += createModalSection("Defining Characteristics", definingCharacteristics);
+  sectionsHTML += createModalSection(
+    "Defining Characteristics",
+    definingCharacteristics
+  );
   sectionsHTML += createModalSection("Related Factors", relatedFactors);
   sectionsHTML += createModalSection("Risk Factors", riskFactors);
-  sectionsHTML += createModalSection("Associated Conditions", associatedConditions);
+  sectionsHTML += createModalSection(
+    "Associated Conditions",
+    associatedConditions
+  );
   sectionsHTML += createModalSection("At Risk Population", atRiskPopulation);
   sectionsHTML += createModalSection("Suggested NOC Outcomes", nocOutcomes);
-  sectionsHTML += createModalSection("Suggested NIC Interventions", nicInterventions);
+  sectionsHTML += createModalSection(
+    "Suggested NIC Interventions",
+    nicInterventions
+  );
 
   // Client Outcomes section (special handling for object structure)
   if (clientOutcomes) {
-    if (typeof clientOutcomes === 'object' && clientOutcomes.outcomes) {
+    if (typeof clientOutcomes === "object" && clientOutcomes.outcomes) {
       sectionsHTML += `
         <div class="modal-section">
-          <h3 class="modal-section-title">Client Outcomes (${clientOutcomes.client_will || 'Client Will'})</h3>
+          <h3 class="modal-section-title">Client Outcomes (${
+            clientOutcomes.client_will || "Client Will"
+          })</h3>
           <div class="modal-section-content">
             <ul class="outcomes-list">
-              ${clientOutcomes.outcomes.map((outcome) => `<li class="outcome-item">${outcome}</li>`).join("")}
+              ${clientOutcomes.outcomes
+                .map((outcome) => `<li class="outcome-item">${outcome}</li>`)
+                .join("")}
             </ul>
           </div>
         </div>
