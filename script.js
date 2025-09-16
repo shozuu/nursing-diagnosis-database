@@ -32,25 +32,9 @@ async function loadData() {
     const response = await fetch("new_nnn_content.json");
     const data = await response.json();
 
-    diagnosesData = data.map((item) => {
-      return {
-        diagnosis: item.diagnosis,
-        pageNum: item.page_num,
-        definition: item.definition,
-        definingCharacteristics: item.defining_characteristics || [],
-        relatedFactors: item.related_factors || [],
-        riskFactors: item.risk_factors || [],
-        atRiskPopulation: item["at-risk_population"] || [],
-        associatedConditions: item.associated_conditions || [],
-        suggestedNOCOutcomes: item.suggested_noc_outcomes || [],
-        suggestedNICInterventions: item.suggested_nic_interventions || [],
-        clientOutcomes: item.client_outcomes || null,
-        references:
-          item[
-            "noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references"
-          ] || null,
-      };
-    });
+    // Keep the original data structure without transformation
+    // Our generateCardHTML() function will handle field variations
+    diagnosesData = data;
 
     filteredData = diagnosesData;
     updatePagination();
@@ -268,33 +252,142 @@ function createDiagnosisCard(diagnosis) {
 
 // Generate the HTML content for a card
 function generateCardHTML(diagnosis, cardType) {
-  // Helper function to create sections for card content
-  const createSection = (title, content) => {
-    if (!content || content.length === 0) return "";
-    const text = Array.isArray(content) ? content.join(", ") : content;
+  // Helper function to safely handle content that might be string or array
+  const normalizeContent = (content) => {
+    if (!content) return [];
+    if (Array.isArray(content)) return content;
+    if (typeof content === "string") return [content];
+    return [];
+  };
+
+  // Helper function to get field content with multiple possible field names
+  const getFieldContent = (fieldNames) => {
+    for (const fieldName of fieldNames) {
+      if (diagnosis[fieldName]) {
+        return diagnosis[fieldName];
+      }
+    }
+    return null;
+  };
+
+  // Helper function to create sections for card content with better display
+  const createSection = (title, content, options = {}) => {
+    const normalizedContent = normalizeContent(content);
+    if (normalizedContent.length === 0) return "";
+
+    const { maxItems = 3, showCount = true } = options;
+    const displayItems = normalizedContent.slice(0, maxItems);
+    const hasMore = normalizedContent.length > maxItems;
+
+    let contentHTML;
+    if (displayItems.length === 1) {
+      // Single item: display as simple text
+      contentHTML = `<div class="section-content-text">${displayItems[0]}</div>`;
+    } else {
+      // Multiple items: display as list
+      contentHTML = `
+        <ul class="section-content-list">
+          ${displayItems
+            .map((item) => `<li class="section-list-item">${item}</li>`)
+            .join("")}
+          ${
+            hasMore
+              ? `<li class="section-more-indicator">+${
+                  normalizedContent.length - maxItems
+                } more...</li>`
+              : ""
+          }
+        </ul>
+      `;
+    }
+
+    const countText =
+      showCount && normalizedContent.length > 1
+        ? ` (${normalizedContent.length})`
+        : "";
+
     return `
       <div class="section">
-        <div class="section-title">${title}</div>
-        <div class="section-content-text">${text}</div>
+        <div class="section-title">${title}${countText}</div>
+        ${contentHTML}
       </div>
     `;
   };
 
+  // Get field content using all possible field name variations
+  const definingCharacteristics = getFieldContent(['defining_characteristics']);
+  const relatedFactors = getFieldContent(['related_factors']);
+  const riskFactors = getFieldContent(['risk_factors']);
+  const associatedConditions = getFieldContent(['associated_conditions']);
+  const atRiskPopulation = getFieldContent(['at-risk_population']);
+  
+  // Handle NOC outcomes variations
+  const nocOutcomes = getFieldContent([
+    'suggested_noc_outcomes',
+    'suggested_noc_outcome',
+    'suggested_noc_outcomes_(visual)',
+    'suggested_noc_outcomes_and_example'
+  ]);
+  
+  // Handle NIC interventions variations
+  const nicInterventions = getFieldContent([
+    'suggested_nic_interventions',
+    'suggested_nic_intervention',
+    'suggested_nursing_interventions'
+  ]);
+
+  // Handle client outcomes (can be object or array)
+  const clientOutcomes = diagnosis.client_outcomes;
+  let clientOutcomesContent = null;
+  if (clientOutcomes) {
+    if (typeof clientOutcomes === 'object' && clientOutcomes.outcomes) {
+      clientOutcomesContent = clientOutcomes.outcomes;
+    } else {
+      clientOutcomesContent = clientOutcomes;
+    }
+  }
+
+  // Handle references field variations (all the long field names)
+  const referencesContent = getFieldContent([
+    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales_,_client/family_teaching,_and_references',
+    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
+    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references'
+  ]);
+
   return `
     <div class="diagnosis-title">
       <span class="diagnosis-text">${diagnosis.diagnosis}</span>
+      ${
+        diagnosis.page_num
+          ? `<span class="page-number">Page ${diagnosis.page_num}</span>`
+          : ""
+      }
     </div>
     <div class="diagnosis-content">
-      ${createSection("Characteristics", diagnosis.definingCharacteristics)}
-      ${createSection("Related Factors", diagnosis.relatedFactors)}
-      ${createSection("Risk Factors", diagnosis.riskFactors)}
-      ${createSection("Associated Conditions", diagnosis.associatedConditions)}
-      ${createSection("At Risk Population", diagnosis.atRiskPopulation)}
-      ${createSection("Suggested Outcomes", diagnosis.suggestedNOCOutcomes)}
-      ${createSection(
-        "Suggested Interventions",
-        diagnosis.suggestedNICInterventions
-      )}
+      ${
+        diagnosis.definition
+          ? `
+        <div class="section definition-section">
+          <div class="section-title">Definition</div>
+          <div class="section-content-text definition-text">${diagnosis.definition}</div>
+        </div>
+      `
+          : ""
+      }
+      ${createSection("Defining Characteristics", definingCharacteristics, { maxItems: 4 })}
+      ${createSection("Related Factors", relatedFactors, { maxItems: 3 })}
+      ${createSection("Risk Factors", riskFactors, { maxItems: 3 })}
+      ${createSection("Associated Conditions", associatedConditions, { maxItems: 2 })}
+      ${createSection("At Risk Population", atRiskPopulation, { maxItems: 2 })}
+      ${createSection("Client Outcomes", clientOutcomesContent, { maxItems: 2 })}
+      ${createSection("Suggested NOC Outcomes", nocOutcomes, { maxItems: 2 })}
+      ${createSection("Suggested NIC Interventions", nicInterventions, { maxItems: 2 })}
+      ${referencesContent ? createSection("References", referencesContent, { maxItems: 1, showCount: false }) : ""}
     </div>
   `;
 }
@@ -822,7 +915,7 @@ function openDiagnosisModal(diagnosis) {
 
   // Populate basic modal content
   modalTitle.textContent = diagnosis.diagnosis;
-  modalPageNumber.textContent = "Page " + diagnosis.pageNum;
+  modalPageNumber.textContent = "Page " + (diagnosis.page_num || diagnosis.pageNum || 'N/A');
   modalDefinition.textContent = diagnosis.definition;
 
   // Clear and populate sections
@@ -844,76 +937,113 @@ function openDiagnosisModal(diagnosis) {
 
 // Generate modal sections HTML
 function generateModalSections(diagnosis) {
+  // Helper function to get field content with multiple possible field names
+  const getFieldContent = (fieldNames) => {
+    for (const fieldName of fieldNames) {
+      if (diagnosis[fieldName]) {
+        return diagnosis[fieldName];
+      }
+    }
+    return null;
+  };
+
+  // Helper function to normalize content (string or array)
+  const normalizeContent = (content) => {
+    if (!content) return [];
+    if (Array.isArray(content)) return content;
+    if (typeof content === "string") return [content];
+    return [];
+  };
+
   // Helper function to create modal sections with proper formatting
   const createModalSection = (title, content) => {
-    if (!content || content.length === 0) return "";
+    const normalizedContent = normalizeContent(content);
+    if (normalizedContent.length === 0) return "";
+    
+    // For modal, show all content (no truncation)
+    const contentHTML = normalizedContent.length === 1 
+      ? normalizedContent[0]
+      : `<ul class="modal-content-list">${normalizedContent.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    
     return `
       <div class="modal-section">
         <h3 class="modal-section-title">${title}</h3>
         <div class="modal-section-content">
-          ${Array.isArray(content) ? content.join(", ") : content}
+          ${contentHTML}
         </div>
       </div>
     `;
   };
 
-  // Build sections using the same logic as cards but without truncation
+  // Get field content using all possible field name variations
+  const definingCharacteristics = getFieldContent(['defining_characteristics']);
+  const relatedFactors = getFieldContent(['related_factors']);
+  const riskFactors = getFieldContent(['risk_factors']);
+  const associatedConditions = getFieldContent(['associated_conditions']);
+  const atRiskPopulation = getFieldContent(['at-risk_population']);
+  
+  // Handle NOC outcomes variations
+  const nocOutcomes = getFieldContent([
+    'suggested_noc_outcomes',
+    'suggested_noc_outcome',
+    'suggested_noc_outcomes_(visual)',
+    'suggested_noc_outcomes_and_example'
+  ]);
+  
+  // Handle NIC interventions variations
+  const nicInterventions = getFieldContent([
+    'suggested_nic_interventions',
+    'suggested_nic_intervention',
+    'suggested_nursing_interventions'
+  ]);
+
+  // Handle client outcomes (can be object or array)
+  const clientOutcomes = diagnosis.client_outcomes;
+
+  // Handle references field variations (all the long field names)
+  const referencesContent = getFieldContent([
+    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning_and_references',
+    'nic,_noc,_client_outcomes,_nursing_interventions_and_rationales_,_client/family_teaching,_and_references',
+    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching,_and_references',
+    'noc,_nic,_client_outcomes,_nursing_interventions_and_rationales,_client/family_teaching_and_discharge_planning,_and_references'
+  ]);
+
+  // Build sections using comprehensive field handling
   let sectionsHTML = "";
 
-  sectionsHTML += createModalSection(
-    "Characteristics",
-    diagnosis.definingCharacteristics
-  );
-  sectionsHTML += createModalSection(
-    "Related Factors",
-    diagnosis.relatedFactors
-  );
-  sectionsHTML += createModalSection("Risk Factors", diagnosis.riskFactors);
-  sectionsHTML += createModalSection(
-    "Associated Conditions",
-    diagnosis.associatedConditions
-  );
-  sectionsHTML += createModalSection(
-    "At Risk Population",
-    diagnosis.atRiskPopulation
-  );
-  sectionsHTML += createModalSection(
-    "Suggested Outcomes",
-    diagnosis.suggestedNOCOutcomes
-  );
-  sectionsHTML += createModalSection(
-    "Suggested Interventions",
-    diagnosis.suggestedNICInterventions
-  );
+  sectionsHTML += createModalSection("Defining Characteristics", definingCharacteristics);
+  sectionsHTML += createModalSection("Related Factors", relatedFactors);
+  sectionsHTML += createModalSection("Risk Factors", riskFactors);
+  sectionsHTML += createModalSection("Associated Conditions", associatedConditions);
+  sectionsHTML += createModalSection("At Risk Population", atRiskPopulation);
+  sectionsHTML += createModalSection("Suggested NOC Outcomes", nocOutcomes);
+  sectionsHTML += createModalSection("Suggested NIC Interventions", nicInterventions);
 
-  // Client Outcomes section
-  if (diagnosis.clientOutcomes) {
-    sectionsHTML += `
-      <div class="modal-section">
-        <h3 class="modal-section-title">Client Outcomes (${
-          diagnosis.clientOutcomes.client_will
-        })</h3>
-        <div class="modal-section-content">
-          <ul class="outcomes-list">
-            ${diagnosis.clientOutcomes.outcomes
-              .map((outcome) => `<li class="outcome-item">${outcome}</li>`)
-              .join("")}
-          </ul>
+  // Client Outcomes section (special handling for object structure)
+  if (clientOutcomes) {
+    if (typeof clientOutcomes === 'object' && clientOutcomes.outcomes) {
+      sectionsHTML += `
+        <div class="modal-section">
+          <h3 class="modal-section-title">Client Outcomes (${clientOutcomes.client_will || 'Client Will'})</h3>
+          <div class="modal-section-content">
+            <ul class="outcomes-list">
+              ${clientOutcomes.outcomes.map((outcome) => `<li class="outcome-item">${outcome}</li>`).join("")}
+            </ul>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      sectionsHTML += createModalSection("Client Outcomes", clientOutcomes);
+    }
   }
 
   // References section
-  if (diagnosis.references) {
-    sectionsHTML += `
-      <div class="modal-section">
-        <h3 class="modal-section-title">References</h3>
-        <div class="modal-section-content">
-          <p>${diagnosis.references}</p>
-        </div>
-      </div>
-    `;
+  if (referencesContent) {
+    sectionsHTML += createModalSection("References", referencesContent);
   }
 
   return sectionsHTML;
