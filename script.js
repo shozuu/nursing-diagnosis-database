@@ -40,6 +40,9 @@ async function loadData() {
     updatePagination();
     displayCurrentPage();
     updateResultsCount(filteredData.length, diagnosesData.length);
+
+    // Check for URL hash after data is loaded to open linked diagnosis
+    checkUrlHash();
   } catch (error) {
     console.error("Error loading data:", error);
     resultsContainer.innerHTML =
@@ -155,6 +158,21 @@ function searchInDiagnosisTitle(diagnosis, searchTerms, originalQuery) {
     score: totalScore,
     matchedFields,
   };
+}
+
+// Generate URL-friendly slug from diagnosis title
+function generateSlug(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "") // Remove special characters
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
+}
+
+// Find diagnosis by slug
+function findDiagnosisBySlug(slug) {
+  return diagnosesData.find((d) => generateSlug(d.diagnosis) === slug);
 }
 
 // Escape special characters for regex
@@ -925,7 +943,7 @@ let modal,
   modalClose;
 
 // Centralized modal opening function
-function openDiagnosisModal(diagnosis) {
+function openDiagnosisModal(diagnosis, updateHash = true) {
   // Ensure modal elements are initialized
   if (
     !modal ||
@@ -936,6 +954,12 @@ function openDiagnosisModal(diagnosis) {
   ) {
     console.error("Modal elements are not initialized.");
     return;
+  }
+
+  // Update URL hash for shareable links
+  if (updateHash) {
+    const slug = generateSlug(diagnosis.diagnosis);
+    history.pushState(null, "", `#${slug}`);
   }
 
   // Populate basic modal content
@@ -1105,6 +1129,14 @@ function generateModalSections(diagnosis) {
 function closeModal() {
   if (modal) {
     modal.classList.remove("active");
+    // Clear the URL hash when closing modal
+    if (window.location.hash) {
+      history.pushState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
+    }
   }
 }
 
@@ -1165,6 +1197,33 @@ function requestScrollTick() {
 }
 
 window.addEventListener("scroll", requestScrollTick);
+
+// Check URL hash and open corresponding diagnosis
+function checkUrlHash() {
+  const hash = window.location.hash.slice(1); // Remove the # symbol
+  if (hash && diagnosesData.length > 0) {
+    const diagnosis = findDiagnosisBySlug(hash);
+    if (diagnosis) {
+      openDiagnosisModal(diagnosis, false); // Don't update hash since it's already set
+    }
+  }
+}
+
+// Handle browser back/forward navigation
+window.addEventListener("hashchange", () => {
+  const hash = window.location.hash.slice(1);
+  if (hash) {
+    const diagnosis = findDiagnosisBySlug(hash);
+    if (diagnosis) {
+      openDiagnosisModal(diagnosis, false);
+    }
+  } else {
+    // Hash was cleared, close the modal
+    if (modal && modal.classList.contains("active")) {
+      modal.classList.remove("active");
+    }
+  }
+});
 
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
